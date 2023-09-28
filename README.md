@@ -19,5 +19,6 @@ clear on this but I believe the following is true:
 An *internal* square is one that is contained in exactly one
 row/column.  If an internal square contains a yellow marked letter,
 that indicates that that letter must appear somewhere else in that
-row/column.
+row/column. By contrast, an external square only implies that it must
+appear in the contained row or column.
 
