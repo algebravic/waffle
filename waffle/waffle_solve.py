@@ -40,14 +40,14 @@ class Waffle:
         self._verbose = verbose
         if self._verbose > 0:
             print(f"There are {len(self._wordlist)} words in the word list")
-        self._cnf = CNF()
-        self._pool = IDPool()
         self._encoding = getattr(EncType, encoding, EncType.totalizer)
         self._internal = set([square
-            for square, count in Counter(chain(*places)) if count == 1])
-        self._basic()
+            for square, count in Counter(chain(*self._board))
+            if count == 1])
+        self._counts = Counter()
+        self._clues = {}
         
-    def _basic(self):
+    def _basic(self, nocard: bool = False):
         """
         The basic model before clues.
         """
@@ -64,7 +64,7 @@ class Waffle:
         for ind, place in enumerate(self._board):
             placed = []
             for word in self._wordlist:
-                word_var = pool.id(('w', word, ind))
+                word_var = self._pool.id(('w', word, ind))
                 placed.append(word_var)
                 # positions: all word variables in this row/col
                 self._cnf.extend([[- word_var,
@@ -82,14 +82,13 @@ class Waffle:
                                         bound = 1,
                                         encoding = EncType.ladder,
                                         vpool = self._pool))
-    def _restrict_letters(self, letters: Iterable[str]):
+    def _restrict_letters(self):
         """
         Add clause to restrict the multiset of letters.
         """
-        counts = Counter(letters)
         # Since the letters are permuted, the multiset of letters
         # is fully specified.
-        for letter, count in counts.items():
+        for letter, count in self._counts.items():
             occupied = [self._pool.id(('s', square, letter))
                 for square in self._squares]
             self._cnf.extend(CardEnc.equals(lits = occupied,
@@ -97,15 +96,16 @@ class Waffle:
                                     encoding = self._encoding,
                                     vpool = self._pool))
         # Now rule out all of the 0 occurences
-        zeros = set(ascii_lowercase).difference(counts.keys())
+        zeros = set(ascii_lowercase).difference(self._counts.keys())
         self._cnf.extend([[-self._pool.id(('s', square, letter))]
                         for square, letter in product(self._squares, zeros)])
 
-    def add_clues(self, clues: CLUES):
+    def _add_clues(self, nocard: bool = False):
         """
         Process the clues.
         """
-        self._restrict_letters((_[0] for _ in clues.values()))
+        if not nocard:
+            self._restrict_letters()
 
         # Now process the color clues
         # Green is easiest
@@ -122,17 +122,17 @@ class Waffle:
         # appear at all
         for place in self._board:
             # Get the clues for this place
-            local_clues = [(square, clues[square]) for square in place]
+            local_clues = [(square, self._clues[square]) for square in place]
             # First place the green, if any
             letter_dict = {}
             eligible = set() # Non green squares in this row/col
             for square, (letter, clue) in local_clues:
                 if clue == COLOR.green:
                     # If green fix the value of letter in square
-                    self._cnf.append([pool.id(('s', square, letter))])
+                    self._cnf.append([self._pool.id(('s', square, letter))])
                 else:
                     # if not green, letter can't be on this square
-                    self._cnf.append([-pool.id(('s', square, letter))])
+                    self._cnf.append([-self._pool.id(('s', square, letter))])
                     eligible.add(square)
                     if letter not in letter_dict:
                         letter_dict[letter] = []
@@ -165,7 +165,7 @@ class Waffle:
                     #     lits = lits,
                     #     bound = yellow_internal + yellow_external,
                     #     encoding = encode,
-                    #     vpool = pool))
+                    #     vpool = self._pool))
                     pass
                 if yellow_internal > 0:
                     self._cnf.extend(CardEnc.atleast(
@@ -173,34 +173,42 @@ class Waffle:
                         bound = yellow_internal,
                         encoding = encode,
                         vpool = self._pool))
-        
-    def solve(self, clue_file: str) -> Iterable[Dict[SQUARE, str]]:
+
+    def letter_count(self, clue_file) -> Counter:
+        """
+        Get the letter counts
+        """
+
+    def solve(self, clue_file: str,
+              nocard: bool = False,
+              solver_name: str = 'cd153') -> Iterable[Dict[SQUARE, str]]:
         """
         Use SAT solving
         """
-        clues = get_clues(clue_file, board)
+        self._clues = get_clues(clue_file, self._board)
+        self._counts = Counter((_[0] for _ in self._clues.values()))
         # print out clues
         if self._verbose > 0:
-            print_clues(clues)
-        self._add_clues(clues)
-        solver = Solver(name = solver_name, bootstrap_with = cnf,
+            print_clues(self._clues)
+        self._cnf = CNF()
+        self._pool = IDPool()
+        self._basic()
+        self._add_clues(nocard = nocard)
+        solver = Solver(name = solver_name, bootstrap_with = self._cnf,
             use_timer = True)
-        accum_time = 0.0
         while True:
             status = solver.solve()
-            if verbose > 0:
-                new_time = solver.time()
-                print(f"time = {new_time - accum_time}")
-                accum_time = new_time
+            if self._verbose > 0:
+                print(f"time = {solver.time()}")
                 print(f"Statistics: {solver.accum_stats()}")
             if status:
-                positive =[pool.obj(_) for _ in solver.get_model() if _ > 0]
+                positive =[self._pool.obj(_) for _ in solver.get_model() if _ > 0]
                 square_values = [_[1:] for _ in positive
                     if _ is not None and _[0] == 's']
                 word_values = [_ for _ in positive if _ is not None
                     and _[0] == 'w']
                 yield dict(square_values), word_values
                 # Now forbid that value
-                solver.add_clause([-pool.id(_) for _ in word_values])
+                solver.add_clause([-self._pool.id(_) for _ in word_values])
             else:
                 break
