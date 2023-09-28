@@ -6,7 +6,7 @@ The next 5 non blank lines are the colors
 """
 from typing import Dict, Tuple, Iterable, List
 from enum import Enum
-from itertools import chain
+from itertools import chain, product
 
 COLOR = Enum('Color', ['green', 'yellow', 'black'])
 
@@ -15,16 +15,16 @@ SQUARE = Tuple[int, int]
 ROWCOL = List[SQUARE]
 BOARD = List[ROWCOL]
 
-def waffle_board():
+def waffle_board(size: int = 5):
     """
     The Waffle board.
     """
-    return [[(0, _) for _ in range(5)],
-            [(2, _) for _ in range(5)],
-            [(4, _) for _ in range(5)],
-            [(_, 0) for _ in range(5)],
-            [(_, 2) for _ in range(5)],
-            [(_, 4) for _ in range(5)]]
+    return list(chain(
+        [[(row, col) for col in range(size)]
+         for row in range(0, size, 2)],
+        [[(row, col) for row in range(size)]
+         for col in range(0, size, 2)]))
+
 
 def get_rows(board: BOARD) -> Iterable[ROWCOL]:
     """
@@ -49,6 +49,7 @@ def get_clues(fname: str, board: BOARD) -> CLUES:
         if not all((_.isalpha() for _ in goodlines)):
             raise ValueError("Clues must be all alphabetic")
         squares = list(sorted(set(chain(*board))))
+        # validate input
         rows = list(get_rows(board))
         nrows = len(rows)
         if not (2 * nrows == len(goodlines)
