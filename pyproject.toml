@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "waffle"
+version = "0.1.0"
+description = ""
+authors = ["Victor S. Miller <victor.miller@sri.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-sat = "^0.1.8.dev9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
