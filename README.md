@@ -1,7 +1,7 @@
 The Waffle game
 ===============
 
-The Waffle game [[https://wafflegame.net/daily][Waffle]] is an
+The Waffle game [Waffle](https://wafflegame.net/daily) is an
 internet game.  Each challenge consists of 5 uknown 5 letter words
 arranged in a 5 by 5 square, covering the top, bottom, left, right and
 middle (there are 4 squares that are unoccupied).  Each occupied
