@@ -18,7 +18,8 @@ def get_words(data: str = 'data/wordlist.txt'):
     Get the word list.
     """
     with open(data, 'r') as myfile:
-        yield from ((_[: -1].lower() for _ in myfile.readlines()))
+        yield from ((_[: -1].lower() for _ in myfile.readlines()
+                    if _[: - 1].isalpha()))
 
 class Waffle:
     """
@@ -44,7 +45,6 @@ class Waffle:
         self._internal = set([square
             for square, count in Counter(chain(*self._board))
             if count == 1])
-        self._counts = Counter()
         self._clues = {}
         
     def _basic(self, nocard: bool = False):
@@ -88,7 +88,7 @@ class Waffle:
         """
         # Since the letters are permuted, the multiset of letters
         # is fully specified.
-        for letter, count in self._counts.items():
+        for letter, count in self.letter_counts.items():
             occupied = [self._pool.id(('s', square, letter))
                 for square in self._squares]
             self._cnf.extend(CardEnc.equals(lits = occupied,
@@ -96,7 +96,7 @@ class Waffle:
                                     encoding = self._encoding,
                                     vpool = self._pool))
         # Now rule out all of the 0 occurences
-        zeros = set(ascii_lowercase).difference(self._counts.keys())
+        zeros = set(ascii_lowercase).difference(self.letter_counts.keys())
         self._cnf.extend([[-self._pool.id(('s', square, letter))]
                         for square, letter in product(self._squares, zeros)])
 
@@ -156,11 +156,13 @@ class Waffle:
                     toplace.remove(square)
                 # treat zeros specially
                 lits = [self._pool.id(('s', _, letter)) for _ in toplace]
-
+                # If there are no yellows, then this letter can't
+                # occur in this row/column.
                 if yellow_internal + yellow_external == 0:
                     self._cnf.extend([[- _] for _ in lits])
 
                 else:
+                    # Below doesn't seem to work.
                     # cnf.extend(CardEnc.atmost(
                     #     lits = lits,
                     #     bound = yellow_internal + yellow_external,
@@ -174,10 +176,17 @@ class Waffle:
                         encoding = encode,
                         vpool = self._pool))
 
-    def letter_count(self, clue_file) -> Counter:
+    @property
+    def letter_counts(self) -> Counter:
         """
         Get the letter counts
         """
+        return Counter((_[0] for _ in self._clues.values()))
+
+    @property
+    def initial_placement(self):
+
+        return {key: val[0] for key, val in self._clues.items()}
 
     def solve(self, clue_file: str,
               nocard: bool = False,
@@ -186,7 +195,6 @@ class Waffle:
         Use SAT solving
         """
         self._clues = get_clues(clue_file, self._board)
-        self._counts = Counter((_[0] for _ in self._clues.values()))
         # print out clues
         if self._verbose > 0:
             print_clues(self._clues)
@@ -203,12 +211,14 @@ class Waffle:
                 print(f"Statistics: {solver.accum_stats()}")
             if status:
                 positive =[self._pool.obj(_) for _ in solver.get_model() if _ > 0]
-                square_values = [_[1:] for _ in positive
+                square_values = [_ for _ in positive
                     if _ is not None and _[0] == 's']
                 word_values = [_ for _ in positive if _ is not None
                     and _[0] == 'w']
-                yield dict(square_values), word_values
+                yield ({_[1]: _[2] for _ in square_values},
+                       {_[2]: _[1] for _ in word_values})
                 # Now forbid that value
-                solver.add_clause([-self._pool.id(_) for _ in word_values])
+                # solver.add_clause([-self._pool.id(_) for _ in word_values])
+                solver.add_clause([-self._pool.id(_) for _ in square_values])
             else:
                 break
