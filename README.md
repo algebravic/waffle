@@ -2,7 +2,7 @@ The Waffle game
 ===============
 
 The Waffle game [Waffle](https://wafflegame.net/daily) is an
-internet game.  Each challenge consists of 5 unknown 5 letter words
+internet game.  Each challenge consists of 6 unknown 5 letter words
 arranged in a 5 by 5 square, covering the top, bottom, left, right and
 middle (there are 4 squares that are unoccupied).  Each occupied
 square is filled with a letter, and with a color.  The answer is
@@ -36,7 +36,7 @@ letter and no more than $i + e$ occurences.
 There is also a *deluxe waffle* which is like the standard waffle
 except that it uses a 7 by 7 square with 7 letter words, only using
 the first, third, fifth and seventh rows and columns (thus leaving 9
-empty squares).
+empty squares), and using 8 unknown words.
 
 I've found that the initial set of clues is sufficient to completely
 solve the puzzle.  It works in two phases: The first phase uses a SAT
