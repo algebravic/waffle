@@ -5,8 +5,8 @@ The Waffle game [Waffle](https://wafflegame.net/daily) is an
 internet game.  Each challenge consists of 5 unknown 5 letter words
 arranged in a 5 by 5 square, covering the top, bottom, left, right and
 middle (there are 4 squares that are unoccupied).  Each occupied
-square is filled with a letter, with a a color.  The answer is
-obtained by some unknown permutation (which is a product of 5
+square is filled with a letter, and with a color.  The answer is
+obtained by some unknown permutation (which is a product of 10
 transpositions) of the filled squares.  The color code gives clues:
 green indicates that the letter is in a correct position.  Yellow
 indicates that the row/column containing that square contains that
@@ -56,3 +56,22 @@ the group that leaves the solution invariant is usually small enough
 to exhaust over.  In the 7 by 7 case it isn't, so we use a discrete
 hill climb with a tabu list.
 
+Here are questions:
+
+1) What vocabulary list is used?  I first used the list of answers for
+*Wordle*, but that seemed to be lacking some words that were used in
+*Waffle*. I then used the list of all [wordle test
+words](https://github.com/tabatkins/wordle-list/blob/main/words),
+which appeared to be sufficient. For 7 letter words I settled on the
+list
+[here](https://github.com/powerlanguage/word-lists/blob/master/word-list-7-letters.txt).
+
+2) What method is used to generate an answer grid?  Ideally one would
+like to generate each possible answer with equal probability. This
+could be done with high accuracy with the Metropolis-Hastings
+algorithm.  Probably it isn't done this way.
+
+3) What method is used to generate the unknown permutation.  The
+website says that it is the product of 10 transpositions for the 5 by
+5 case and 20 for the 7 by 7 case.  Are they generated uniformly at
+random, with or without replacement?
