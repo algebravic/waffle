@@ -11,15 +11,19 @@ from pysat.formula import CNF, IDPool
 from pysat.solvers import Solver
 from pysat.card import CardEnc, EncType
 from .clue import CLUES, COLOR, BOARD, SQUARE, get_clues, print_clues, waffle_board
-from .get_words import system_words
+from .get_words import get_words
 
-def get_words(data: str = 'data/wordlist.txt'):
+
+def letter_clues(clues: CLUES) -> Dict[str,Tuple[SQUARE,COLOR]]:
     """
-    Get the word list.
+    Redistribute the clues according to letter.
     """
-    with open(data, 'r') as myfile:
-        yield from ((_[: -1].lower() for _ in myfile.readlines()
-                    if _[: - 1].isalpha()))
+    out = {}
+    for square, (letter, color) in clues.items():
+        if letter not in out:
+            out[letter] = []
+        out[letter].append((square, color))
+    return out
 
 class Waffle:
     """
@@ -34,18 +38,17 @@ class Waffle:
 
         self._board = list(waffle_board(size))
         self._squares = set(chain(*self._board))
-        if wordlist == 'system':
-            self._wordlist = list(system_words(size))
-        else:
-            self._wordlist = list(get_words(f'data/{wordlist}.txt'))
+        self._internal = {square
+            for square, count in Counter(chain(*self._board))
+            if count == 1}
+        self._wordlist = list(get_words(wordlist, wlen = size))
         self._verbose = verbose
         if self._verbose > 0:
             print(f"There are {len(self._wordlist)} words in the word list")
         self._encoding = getattr(EncType, encoding, EncType.totalizer)
-        self._internal = set([square
-            for square, count in Counter(chain(*self._board))
-            if count == 1])
         self._clues = {}
+        self._upper = True
+        self._allow_yellow = True
         
     def _basic(self, nocard: bool = False):
         """
@@ -122,59 +125,52 @@ class Waffle:
         # appear at all
         for place in self._board:
             # Get the clues for this place
-            local_clues = [(square, self._clues[square]) for square in place]
-            # First place the green, if any
-            letter_dict = {}
-            eligible = set() # Non green squares in this row/col
-            for square, (letter, clue) in local_clues:
-                if clue == COLOR.green:
-                    # If green fix the value of letter in square
-                    self._cnf.append([self._pool.id(('s', square, letter))])
+            local_clues = letter_clues({square: val
+                for square, val in self._clues.items()
+                if square in place})
+            for letter, values in local_clues.items():
+                # Count up the color codes for this letter
+                lower = 0
+                upper = 0
+                nongreen = False
+                # The remaining squares influenced by clues for this leter
+                eligible = set(place)
+                for square, color in values:
+                    eligible.remove(square)
+                    svar = self._pool.id(('s', square, letter))
+                    if color == COLOR.green:
+                        # This square is correct
+                        self._cnf.append([svar])
+                    else:
+                        # This square is incorrect
+                        nongreen = True
+                        self._cnf.append([-svar])
+                        if color == COLOR.yellow:
+                            upper += 1
+                            if square in self._internal:
+                                lower += 1
+                if not nongreen:
+                    continue
+                rest = [self._pool.id(('s', square, letter))
+                    for square in eligible]
+                if upper == 0:
+                    self._cnf.extend([[- _] for _ in rest])
                 else:
-                    # if not green, letter can't be on this square
-                    self._cnf.append([-self._pool.id(('s', square, letter))])
-                    eligible.add(square)
-                    if letter not in letter_dict:
-                        letter_dict[letter] = []
-                    letter_dict[letter].append((square, clue))
-            # yellow/black can't be in the indicated squares
-            for letter, clue_pos in letter_dict.items():
-                yellow_internal = 0
-                yellow_external = 0
-                # Will be squares in this row/col not green and not
-                # mentioned by this letter.
-                toplace = eligible.copy()
-                # Yellow or black can't be in this square
-                for square, clue in clue_pos:
-                    if clue == COLOR.yellow:
-                        if square in self._internal:
-                            yellow_internal += 1
-                        else:
-                            yellow_external += 1
-                    elif clue != COLOR.black:
-                        raise ValueError(f"Illegal color {clue}")
-                    toplace.remove(square)
-                # treat zeros specially
-                lits = [self._pool.id(('s', _, letter)) for _ in toplace]
-                # If there are no yellows, then this letter can't
-                # occur in this row/column.
-                if yellow_internal + yellow_external == 0:
-                    self._cnf.extend([[- _] for _ in lits])
-
-                else:
-                    # Below doesn't seem to work.
-                    # cnf.extend(CardEnc.atmost(
-                    #     lits = lits,
-                    #     bound = yellow_internal + yellow_external,
-                    #     encoding = encode,
-                    #     vpool = self._pool))
-                    pass
-                if yellow_internal > 0:
-                    self._cnf.extend(CardEnc.atleast(
-                        lits = lits,
-                        bound = yellow_internal,
-                        encoding = encode,
-                        vpool = self._pool))
+                    # if only blacks, all eligible are not this letter
+                    if self._allow_yellow: 
+                        if lower > 0:
+                            self._cnf.extend(CardEnc.atleast(lits = rest,
+                                                            bound = lower,
+                                                            encoding = self._encoding,
+                                                            vpool = self._pool))
+                        # yellows should be an upper bound
+                        if self._upper:
+                            self._cnf.extend(CardEnc.atmost(lits = rest,
+                                                            bound = upper,
+                                                            encoding = self._encoding,
+                                                            vpool = self._pool))
+                    
+                        
 
     @property
     def letter_counts(self) -> Counter:
@@ -190,11 +186,15 @@ class Waffle:
 
     def solve(self, clue_file: str,
               nocard: bool = False,
+              upper: bool = True,
+              allow_yellow: bool = True,
               solver_name: str = 'cd153') -> Iterable[Dict[SQUARE, str]]:
         """
         Use SAT solving
         """
         self._clues = get_clues(clue_file, self._board)
+        self._upper = upper
+        self._allow_yellow = allow_yellow
         # print out clues
         if self._verbose > 0:
             print_clues(self._clues)
