@@ -6,9 +6,11 @@ from itertools import product, chain, tee
 from collections import Counter
 from sympy.combinatorics.permutations import Permutation 
 from sympy.combinatorics.perm_groups import PermutationGroup
+from .clue import SQUARE
 
-PLACEMENT = Dict[Tuple[int, int], str]
-REVERSE = Dict[str, List[Tuple[int, int]]]
+PLACEMENT = Dict[SQUARE, str]
+REVERSE = Dict[str, List[SQUARE]]
+SQUARE_PERM = List[List[SQUARE]]
 
 def _validate(placement: PLACEMENT):
 
@@ -53,12 +55,12 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
         outperm.update(zip(sorted(val), sorted(rsoln[key])))
     return outperm
 
-def placement_partition(placement: PLACEMENT) -> List[Set[Tuple[int, int]]]:
+def placement_partition(placement: PLACEMENT) -> List[Set[SQUARE]]:
 
     _validate(placement)
     return list(_reverse(placement).values())
 
-def sym_gens(elts: List[int]) -> Iterable[Tuple[int, int]]:
+def sym_gens(elts: List[int]) -> Iterable[SQUARE]:
     """
     Coxeter generators of the full symmetric group.
     """
@@ -85,8 +87,7 @@ def to_cycle(perm: Dict[Hashable, Hashable]) -> List[List[Hashable]]:
     return cycles
 
 def climb(perm: Permutation, grp: PermutationGroup,
-          tenure: int = 10) -> Tuple[Permutation,
-                                                            Counter]:
+          tenure: int = 10) -> Tuple[Permutation, int]:
     """
     Do one best ascent climb until a hilltop.
     """
@@ -136,6 +137,7 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
     print(f"histogram = {count}")
     return best
 
+# sympy permutations need integers
 def minimal_element(initial: PLACEMENT, solution: PLACEMENT,
                     exhaust: bool = False,
                     hillclimb_opts: Dict | None = None) -> Permutation:
@@ -151,7 +153,8 @@ def minimal_element(initial: PLACEMENT, solution: PLACEMENT,
     # Create the Coxeter generators
     gens = chain(*map(sym_gens, parts))
     print(f"degree = {degree}")
-    grp = PermutationGroup([Permutation([_], size = degree) for _ in gens])
+    grp = PermutationGroup([Permutation([_], size = degree)
+        for _ in gens])
     print(f"Group size = {grp.order()}")
     if exhaust:
         # Exhaustion over the coset
