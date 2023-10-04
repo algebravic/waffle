@@ -6,9 +6,10 @@ authors = ["Victor S. Miller <victor.miller@sri.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.11,<3.13"
 python-sat = "^0.1.8.dev9"
 sympy = "^1.12"
+numpy = "^1.26.0"
 
 
 [build-system]
