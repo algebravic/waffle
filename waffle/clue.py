@@ -9,11 +9,11 @@ from enum import Enum
 from itertools import chain, product
 
 COLOR = Enum('Color', ['green', 'yellow', 'black'])
-
-CLUES = Dict[[Tuple[int, int]], Tuple[str, COLOR]]
 SQUARE = Tuple[int, int]
+CLUES = Dict[SQUARE, Tuple[str, COLOR]]
 ROWCOL = List[SQUARE]
 BOARD = List[ROWCOL]
+CLUE_DIR = 'data/puzzles'
 
 def waffle_board(size: int = 5):
     """
@@ -42,7 +42,7 @@ def get_clues(fname: str, board: BOARD) -> CLUES:
     Read in the clue file and create the CLUES dict.
     """
     color_dict = {'g': COLOR.green, 'b': COLOR.black, 'y': COLOR.yellow}
-    with open(fname, 'r') as myfile:
+    with open(f"{CLUE_DIR}/{fname}.txt", 'r') as myfile:
         lines = [_[:-1].replace(" ", "") for _ in myfile.readlines()]
         goodlines = [_.lower() for _ in lines if len(_) > 0]
         # There should be 10 lines
