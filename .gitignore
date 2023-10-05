@@ -1,2 +1,9 @@
 *~
 *.pyc
+*ltximg*
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
