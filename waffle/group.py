@@ -137,34 +137,77 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
     print(f"histogram = {count}")
     return best
 
+def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
+                  limit: int | None = None) -> Permutation:
+    """
+    Input:
+      coset_rep: a representative of a right coset, h
+      subgrp: A subgroup, G
+    Exhaust the right coset G h to find the an element
+    with the largest number of cycles, or if limit is not None
+    an element with at least limit cycles.
+    """
+    return max((_ * coset_rep for _ in subgrp._elements),
+               key = lambda _: _.cycles)
+
 # sympy permutations need integers
 def minimal_element(initial: PLACEMENT, solution: PLACEMENT,
                     exhaust: bool = False,
-                    hillclimb_opts: Dict | None = None) -> Permutation:
+                    hillclimb_opts: Dict | None = None) -> SQUARE_PERM:
 
     # First create the mapping to a from indices
-    iperm = initial_permutation(initial, solution)
-    degree = len(initial.keys())
     forward = dict(enumerate(sorted(initial.keys())))
     back = {_[1]: _[0] for _ in forward.items()}
+    degree = len(initial.keys())
+    print(f"degree = {degree}")
+
+    iperm = initial_permutation(initial, solution)
     tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
+    # Find the invariant subgroup
     part = placement_partition(solution)
     parts = map(lambda _: [back[elt] for elt in _], part)
     # Create the Coxeter generators
     gens = chain(*map(sym_gens, parts))
-    print(f"degree = {degree}")
     grp = PermutationGroup([Permutation([_], size = degree)
         for _ in gens])
     print(f"Group size = {grp.order()}")
+    
     if exhaust:
-        # Exhaustion over the coset
-        elt1, elt2 = tee((_ * tperm for _ in grp._elements))
-        max_elt = max(elt1, key = lambda _: _.cycles)
-        print(f"Histogram: = {Counter(map(lambda _: _.cycles, elt2))}")
+        max_elt = exhaust_coset(tperm, grp)
     else: # Do a hillclimb
         if hillclimb_opts is None:
             hillclimb_opts = {}
         max_elt = hillclimb(tperm, grp, **hillclimb_opts)
     # Now convert back to cyclic form
-    out_elt = [[forward[_] for _ in cycle] for cycle in max_elt.cyclic_form]
-    return out_elt, max_elt.cycles
+    return [[forward[_] for _ in cycle]
+            for cycle in max_elt.cyclic_form]
+
+def _validate_cycle(permutation: List[List[Hashable]]):
+    """
+    Validate cyclic form
+    """
+    support = list(chain(*permutation))
+    if (len(support) != len(set(support))
+        or any(map(lambda _: len(_) == 0, permutation))):
+        raise ValueError("Elements are not distinct!")
+
+def cycle_to_dict(permutation: List[List[Hashable]]) -> Dict[
+    Hashable, Hashable]:
+    """
+    Translate from cyclic form to a dict
+    """
+    _validate_cycle(permutation)
+    out = {}
+    # Elements should be distinct
+
+    return dict(chain(*(zip(cycle, cycle[1: ] + [cycle[0]])
+                        for cycle in permutation)))
+
+def to_transpositions(permutation: List[List[Hashable]]) -> List[
+    Tuple[Hashable, Hashable]]:
+    """
+    Convert cyclic form into a product of transpositions.
+    """
+    _validate_cycle(permutation)
+    return list(reversed(list(chain(*(list(zip(cycle[: - 1], cycle[1: ]))
+                    for cycle in permutation)))))
