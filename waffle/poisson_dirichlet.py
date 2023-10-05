@@ -19,6 +19,36 @@ def feller_representation(num: int, theta: float) -> List[int]:
     places = np.arange(num)[(np.random.random(num) <= tst)]
     return np.concatenate([places, np.array([num])])
 
+def chinese_restaurant(num: int, theta: float) -> List[int]:
+    """
+      Dubins and Pitman. We add elements to the partition one by one.
+      Element 1 starts in a block on its own.
+      Thereafter, when we add element r+1,
+      suppose there are currently m blocks whose sizes are
+      n_1, n_2, ..., n_m.
+      Add element r+1 to block i with probability n_i/(r+theta),
+      for 1 <= i <= m,
+      and put element r+1 into a new block on its own
+      with probability theta/(r+theta).
+
+      numpy.random.choice(elements, number, p=list(probabilities))
+
+      Note that when we consider element r+1,
+      we must have sum_i n_i = r.
+      Thus sum_i (n_i/(r+theta)) = r/(r+theta).
+    
+    """
+    blocks = [[0]]
+    for ind in range(1, num):
+        probs = (np.array(list(map(len(blocks))))/(ind + theta)).tolist()
+        where = np.random.choice(range(ind), 1,
+            p = probs + [1-sum(probs)])
+        if where < ind:
+            blocks[where].append(ind)
+        else:
+            blocks.append([ind])
+    return blocks
+    
 def optimal_value(num: int, kval: int,
                   epsilon: float = 1.0e-5,
                   verbose: int = 0) -> float:
