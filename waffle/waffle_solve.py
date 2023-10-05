@@ -12,7 +12,27 @@ from pysat.solvers import Solver
 from pysat.card import CardEnc, EncType
 from .clue import CLUES, COLOR, BOARD, SQUARE, get_clues, print_clues, waffle_board
 from .get_words import get_words
+from .group import minimal_element, to_transpositions
 
+PLACEMENT = Dict[SQUARE, str]
+
+def check_solution(initial: PLACEMENT,
+                   final: PLACEMENT,
+                   perm: List[Tuple[SQUARE, SQUARE]]) -> List[
+                       Tuple[SQUARE, str, str]]:
+    """
+    Input:
+      initial, final: mapping of squares to letters.
+      perm: a permutation of squares given in cycle form
+    Output:
+      Check whether the permutation applied to initial
+      is equal to final.
+    """
+    current = initial.copy()
+    for elt1, elt2 in perm:
+            current[elt1], current[elt2] = current[elt2], current[elt1]
+    return [(key, val, final[key]) for key, val in current.items()
+            if final[key] != current[key]]
 
 def letter_clues(clues: CLUES) -> Dict[str,Tuple[SQUARE,COLOR]]:
     """
@@ -180,15 +200,16 @@ class Waffle:
         return Counter((_[0] for _ in self._clues.values()))
 
     @property
-    def initial_placement(self):
+    def initial_placement(self) -> PLACEMENT:
 
         return {key: val[0] for key, val in self._clues.items()}
 
-    def solve(self, clue_file: str,
-              nocard: bool = False,
-              upper: bool = True,
-              allow_yellow: bool = True,
-              solver_name: str = 'cd153') -> Iterable[Dict[SQUARE, str]]:
+    def solve_words(self, clue_file: str,
+                    nocard: bool = False,
+                    upper: bool = True,
+                    allow_yellow: bool = False,
+                    solver_name: str = 'cd153') -> Iterable[
+                        Tuple[Dict[SQUARE, str], Dict[int, str]]]:
         """
         Use SAT solving
         """
@@ -210,15 +231,44 @@ class Waffle:
                 print(f"time = {solver.time()}")
                 print(f"Statistics: {solver.accum_stats()}")
             if status:
-                positive =[self._pool.obj(_) for _ in solver.get_model() if _ > 0]
+                positive =[self._pool.obj(_)
+                    for _ in solver.get_model() if _ > 0]
                 square_values = [_ for _ in positive
                     if _ is not None and _[0] == 's']
-                word_values = [_ for _ in positive if _ is not None
-                    and _[0] == 'w']
+                word_values = [_ for _ in positive
+                    if _ is not None and _[0] == 'w']
                 yield ({_[1]: _[2] for _ in square_values},
                        {_[2]: _[1] for _ in word_values})
                 # Now forbid that value
-                # solver.add_clause([-self._pool.id(_) for _ in word_values])
-                solver.add_clause([-self._pool.id(_) for _ in square_values])
+
+                solver.add_clause([-self._pool.id(_)
+                                   for _ in square_values])
+                solver.add_clause([-self._pool.id(_)
+                                   for _ in word_values])
             else:
                 break
+
+    def solve_puzzle(self, clue_file: str,
+                     minimal_opts: Dict | None = None,
+                     solver_opts: Dict | None = None) -> Iterable[
+                         Tuple[Dict[SQUARE, str], Dict[int, str]]]:
+        """
+        """
+        if solver_opts is None:
+            solver_opts = {}
+        if minimal_opts is None:
+            minimal_opts = {}
+        for letter_placement, word_placement in self.solve_words(
+            clue_file, **solver_opts):
+
+            initial = self.initial_placement.copy()
+            solution = minimal_element(initial, letter_placement,
+                                       **minimal_opts)
+            perm = to_transpositions(solution)
+            yield word_placement, perm
+            # We should check the solution
+            result = check_solution(initial, letter_placement, perm)
+            if not len(result) > 0:
+                print(f"Solution check failed: {result}!")
+            else:
+                print("Solution checks!")
