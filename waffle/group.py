@@ -38,6 +38,14 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     Inputs: intial and solution are dictionaries with the same key set.
     and value multiset.  Output a permutation of the key set,
     which transforms initial to solution.
+
+    rinit, and rsoln will be dicts whose key is a letter
+    and whose value is a set of squares having that letter there.
+
+    A permutation that will transform initial to solution
+    is one which maps a sorted list of squares from each
+    letter value to the corresponding elements of a sorted
+    list of squares in the solution.
     """
 
     # Check input
@@ -151,11 +159,15 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
                key = lambda _: _.cycles)
 
 # sympy permutations need integers
-def minimal_element(initial: PLACEMENT, solution: PLACEMENT,
+def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
                     exhaust: bool = False,
                     hillclimb_opts: Dict | None = None) -> SQUARE_PERM:
 
     # First create the mapping to a from indices
+    disagree = set((square for square, letter in initx.items()
+        if letter != soln[square]))
+    initial = {key: initx[key] for key in disagree}
+    solution = {key: soln[key] for key in disagree}
     forward = dict(enumerate(sorted(initial.keys())))
     back = {_[1]: _[0] for _ in forward.items()}
     degree = len(initial.keys())

@@ -1,0 +1,105 @@
+#+Title: Understanding the Waffle game
+
+* Motto
+"The purpose of computing is insight, not numbers." - Richard Hamming
+
+* The Waffle Game
+The *Waffle game* is an online game [[https://wafflegame.net][Waffle]] .  A typical example is
+[[file:waffle1.png]].  In the original game there are 6 unknown 5 letter
+words arranged on a $5 \times 5$ grid, in the first, third and fifth
+rows, and first, third and fifth columns.  Four squares in the grid
+are left empty.  The challenge consists in permuting the squares
+containing the letters, and then providing clues. 
+
+** The Challenge
+The game challenge consists of the following: there is a secret choice
+of six words to arrange in the grid.  Then a secret permutation is
+chosen by successively choosing 10 pairs of squares and swapping their
+contents.  The player gets to choose a pair of squares, and swapping
+their contents by dragging one square to the other.  After this move,
+the clues (describe below) are updated.  The player gets 15 turns to
+restore the grid to its secret state.  The score given is 15 minus the
+number of swaps used.
+
+** The Clues
+The permuted squares are given three colors: green, yellow and white.
+The color green means that the letter is in a correct position.  The
+other colors mean that the letter is in an incorrect position.  Within
+each row or column, if all letters with the same value are colored
+white, this means that the other positions in the row/column cannot
+contain that letter.  In general, the color yellow means that some
+other position in the row/column *will* contain that letter.  Things
+get a bit more complicated if there are multiple positions containing
+the same letter, some colored yellow, and some colored white.
+
+Here is the more complex rule:
+
+Call a square in the grid *internal* if it is only contained in one
+row or column.  Otherwise call it external.
+
+The rule appears to be that if there are $a$ positions colored white,
+and $b$ internal positions colored yellow, and $c$ external positions
+colored yellow.  Then at least $b$ of the remaining squares in that
+row/column, not colored green must contain the letter in question, and
+not more than $b + c$ squares may contain the letter in question.
+
+** Analysis
+One thing that is *not* specified on the website is the contents of
+the dictionary of allowed five letter words.  I decided to use the
+list of official answer for Wordle, which consists of 2309 words.
+
+After seeing the game, and playing it for a number of weeks I wondered
+how often the initial set of clues uniquely determine the set of
+correct words.  If so, one could then calculate the smallest number of
+swaps necessary to restore the grid to its secret state.  In order to
+explore this question, I wrote a program using a SAT solver.  I found,
+in all cases that I tried, that the initial set of clues uniquely
+specified the secret arrangement.  Below I'll describe the encoding
+and constraints that I used. 
+
+In analyzing the clues, the first information that they provide is the
+multiset of letters in answer.  Since any permutation of the squares
+in the grid preserves the multiset, we can add that as a constraint.
+
+Variables: There are two sets of variables.  The first is the *word
+variables* $w_{\alpha, i}$, where $\alpha$ ranges over all the words
+in the dictionary, and $i$ ranges over the six rows and columns in the
+grid.  This indicate that the word $\alpha$ is assigned to row/column
+$i$.  The *square variables* $s_{q,\ell}$.  This indicates that letter
+$\ell$ is assigned to square $q$.
+
+The two sets of variables are linked by adding implications
+$w_{\alpha, i} \Rightarrow s_{q,\ell}$ if square $q$ is contained in
+row/column $i$, colored green, and containing the letter $\ell$.
+
+We add constraints which ensure that every row/column $i$ is assigned
+a word $\bigvee_{\alpha} w_{\alpha,i}$, and that no word is used more
+than once (this is not specified in the problem description, but it
+seems a reasonable assumption): ${\tt Card}(\{w_{\alpha,i}: i\}) \le 1$.
+
+For the clues, the green squares are the most straightforward: we add
+a unit clause $s_{q,\ell}$ to ensure that letter $\ell$ is assigned to
+square $q$.
+
+* A Problem in Computational Group Theory
+
+To finish up the problem we need to solve the following problem:
+determine a permutation of the squares which restores the grid to
+contain the secret answer realized as a composition of the smallest
+possible number of transposoitions.  Once we have the secret solution
+determined, it is easy to determine *some* permutation $\pi$ which
+does the job.  However, because there are duplicate letters, let
+$G$ be the subgroup of permutations of the squares which leave the
+letters invariant.  Then the coset $G \pi$ is the set of possible
+permutations.  We use the following result:
+
+Proposition: Let $\pi$ be a permutation of $\{1, \dots, n\}$.  If $k$
+is the smallest number of transpositions $\tau_1, \dots, \tau_k$ such
+that $\pi = \tau_1 \cdot \tau_k$, then $k = n - t$, where $t$ is the
+number of cycles in $\pi$.
+
+Problem: Let $G$ be a subgroup of $S_n$ given by a list of generators
+$g_1, \dots, g_m$, and $\pi \in S_n$.  Determine an element of $G \pi$
+with the largest number of cycles.
+
+Question: Can this be done using the Schreier-Sims algorithm?
