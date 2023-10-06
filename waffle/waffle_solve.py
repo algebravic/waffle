@@ -12,7 +12,7 @@ from pysat.solvers import Solver
 from pysat.card import CardEnc, EncType
 from .clue import CLUES, COLOR, BOARD, SQUARE, get_clues, print_clues, waffle_board
 from .get_words import get_words
-from .group import minimal_element, to_transpositions
+from .group import minimal_element, to_transpositions, check_solution
 
 PLACEMENT = Dict[SQUARE, str]
 CONTENTS = Tuple[SQUARE, str]
@@ -35,24 +35,6 @@ def detailed_solution(initial: PLACEMENT,
         val2 = current[elt2]
         yield ((elt1, val1), (elt2, val2))
         current[elt1], current[elt2] = val2, val1
-
-def check_solution(initial: PLACEMENT,
-                   final: PLACEMENT,
-                   perm: List[Tuple[SQUARE, SQUARE]]) -> List[
-                       Tuple[SQUARE, str, str]]:
-    """
-    Input:
-      initial, final: mapping of squares to letters.
-      perm: a permutation of squares given in cycle form
-    Output:
-      Check whether the permutation applied to initial
-      is equal to final.
-    """
-    current = initial.copy()
-    for elt1, elt2 in perm:
-        current[elt1], current[elt2] = current[elt2], current[elt1]
-    return [(key, val, final[key]) for key, val in current.items()
-        if final[key] != current[key]]
 
 def letter_clues(clues: CLUES) -> Dict[str,Tuple[SQUARE,COLOR]]:
     """
@@ -299,7 +281,7 @@ class Waffle:
             yield word_placement, perm
             # We should check the solution
             result = check_solution(initial, letter_placement, perm)
-            if not len(result) > 0:
+            if len(result) > 0:
                 print(f"Solution check failed: {result}!")
             else:
                 print("Solution checks!")
