@@ -57,11 +57,8 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     outperm = {}
     rinit = _reverse(initial)
     rsoln = _reverse(solution)
-
-    for key, val in rinit.items():
-
-        outperm.update(zip(sorted(val), sorted(rsoln[key])))
-    return outperm
+    return dict(chain(*(zip(sorted(rinit[key]),
+                            sorted(rsoln[key])) for key in rinit)))
 
 def placement_partition(placement: PLACEMENT) -> List[Set[SQUARE]]:
 
@@ -209,9 +206,7 @@ def cycle_to_dict(permutation: List[List[Hashable]]) -> Dict[
     Translate from cyclic form to a dict
     """
     _validate_cycle(permutation)
-    out = {}
     # Elements should be distinct
-
     return dict(chain(*(zip(cycle, cycle[1: ] + [cycle[0]])
                         for cycle in permutation)))
 
@@ -219,7 +214,15 @@ def to_transpositions(permutation: List[List[Hashable]]) -> List[
     Tuple[Hashable, Hashable]]:
     """
     Convert cyclic form into a product of transpositions.
+
+    If (x[0], x[1], ..., x[m]) is a cycle, a factorization of its
+    inverse is
+    (x[0], x[1]) * (x[1], x[2]) * .. * (x[m-1], x[m])
+
+    Namely (x[0], x[1], ..., x[m]) * (x[0], x[1]) =
+    (x[1], ..., x[m])
     """
     _validate_cycle(permutation)
-    return list(reversed(list(chain(*(list(zip(cycle[: - 1], cycle[1: ]))
-                    for cycle in permutation)))))
+    return list(reversed(list(chain(*(
+        zip(cycle[: - 1], cycle[1: ])
+        for cycle in permutation)))))
