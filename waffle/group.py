@@ -33,6 +33,83 @@ def _reverse(placement: PLACEMENT) -> REVERSE:
         out[val].add(key)
     return out
 
+def _validate_cycle(permutation: List[List[Hashable]]):
+    """
+    Validate cyclic form
+    """
+    support = list(chain(*permutation))
+    if len(support) != len(set(support)):
+        raise ValueError("Elements are not distinct!")
+    if any(map(lambda _: len(_) == 0, permutation)):
+        raise ValueError("There are empty cycles")
+
+def to_cycle(perm: Dict[Hashable, Hashable]) -> List[List[Hashable]]:
+    """
+    Cycle rendition of a permutation.
+    """
+    consider = set(perm.keys())
+    used = set()
+    cycles = []
+    while consider:
+        first = consider.pop()
+        cycle = [first]
+        elt = perm[first]
+        while elt != first:
+            cycle.append(elt)
+            consider.remove(elt)
+            elt = perm[elt]
+        if len(cycle) > 1:
+            cycles.append(cycle)
+    return cycles
+
+def cycle_to_dict(permutation: List[List[Hashable]]) -> Dict[
+    Hashable, Hashable]:
+    """
+    Translate from cyclic form to a dict
+    """
+    _validate_cycle(permutation)
+    # Elements should be distinct
+    return dict(chain(*(zip(cycle, cycle[1: ] + [cycle[0]])
+                        for cycle in permutation)))
+
+def to_transpositions(permutation: List[List[Hashable]]) -> List[
+    Tuple[Hashable, Hashable]]:
+    """
+    Convert cyclic form into a product of transpositions.
+
+    If (x[0], x[1], ..., x[m]) is a cycle, a factorization of its
+    inverse is
+    (x[0], x[1]) * (x[1], x[2]) * .. * (x[m-1], x[m])
+
+    Namely (x[0], x[1], ..., x[m]) * (x[0], x[1]) =
+    (x[1], ..., x[m])
+    """
+    _validate_cycle(permutation)
+    return list(reversed(list(chain(*(
+        zip(cycle[: - 1], cycle[1: ])
+        for cycle in permutation)))))
+
+def check_solution(initial: PLACEMENT,
+                   final: PLACEMENT,
+                   perm: List[Tuple[SQUARE, SQUARE]]) -> List[
+                       Tuple[SQUARE, str, str]]:
+    """
+    Input:
+      initial, final: mapping of squares to letters.
+      perm: a permutation of squares given in cycle form
+    Output:
+      Check whether the permutation applied to initial
+      is equal to final.
+    """
+    current = initial.copy()
+    for elt1, elt2 in perm:
+        val1, val2 = current[elt1], current[elt2]
+        if val1 == final[elt1] or val2 == final[elt2]:
+            print(f"Swapping green {elt1} <--> {elt2}")
+        current[elt1], current[elt2] = val2, val1
+    return [(key, val, final[key]) for key, val in current.items()
+        if final[key] != current[key]]
+
 def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     """
     Inputs: intial and solution are dictionaries with the same key set.
@@ -72,25 +149,6 @@ def sym_gens(elts: List[int]) -> Iterable[SQUARE]:
     yield from zip(elts[: -1], elts[1: ])
 
 
-def to_cycle(perm: Dict[Hashable, Hashable]) -> List[List[Hashable]]:
-    """
-    Cycle rendition of a permutation.
-    """
-    consider = set(perm.keys())
-    used = set()
-    cycles = []
-    while consider:
-        first = consider.pop()
-        cycle = [first]
-        elt = perm[first]
-        while elt != first:
-            cycle.append(elt)
-            consider.remove(elt)
-            elt = perm[elt]
-        if len(cycle) > 1:
-            cycles.append(cycle)
-    return cycles
-
 def climb(perm: Permutation, grp: PermutationGroup,
           tenure: int = 10) -> Tuple[Permutation, int]:
     """
@@ -101,7 +159,7 @@ def climb(perm: Permutation, grp: PermutationGroup,
     tries = 0
     while True:
         tries += 1
-        candidates = [_ * tst for _ in grp.generators]
+        candidates = [tst * _ for _ in grp.generators]
         consider = [_ for _ in candidates if _ not in tabu]
         nbr = max(consider, key = lambda _: _.cycles)
         # Have we reached a hilltop?
@@ -127,7 +185,7 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
     best = perm
     count = Counter()
     for iteration in range(1, iterations + 1):
-        start = grp.random() * perm
+        start = perm * grp.random()
         tst, tries = climb(start, grp, tenure = tenure)
         count.update([tries])
         if tst.cycles > best.cycles:
@@ -152,7 +210,10 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
     with the largest number of cycles, or if limit is not None
     an element with at least limit cycles.
     """
-    return max((_ * coset_rep for _ in subgrp._elements),
+    # return max((_ * coset_rep for _ in subgrp._elements),
+    #            key = lambda _: _.cycles)
+
+    return max((coset_rep * _ for _ in subgrp._elements),
                key = lambda _: _.cycles)
 
 # sympy permutations need integers
@@ -171,6 +232,13 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
     print(f"degree = {degree}")
 
     iperm = initial_permutation(initial, solution)
+    iperm_trans = to_transpositions(to_cycle(iperm))
+    check = check_solution(initial, solution, iperm_trans)
+    if len(check) > 0:
+        print(f"Initial permutation fail: {check}")
+    else:
+        print(f"Initial permutation ok: # cycles = {len(iperm_trans)}")
+            
     tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
     # Find the invariant subgroup
     part = placement_partition(solution)
@@ -191,38 +259,3 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
     return [[forward[_] for _ in cycle]
             for cycle in max_elt.cyclic_form]
 
-def _validate_cycle(permutation: List[List[Hashable]]):
-    """
-    Validate cyclic form
-    """
-    support = list(chain(*permutation))
-    if (len(support) != len(set(support))
-        or any(map(lambda _: len(_) == 0, permutation))):
-        raise ValueError("Elements are not distinct!")
-
-def cycle_to_dict(permutation: List[List[Hashable]]) -> Dict[
-    Hashable, Hashable]:
-    """
-    Translate from cyclic form to a dict
-    """
-    _validate_cycle(permutation)
-    # Elements should be distinct
-    return dict(chain(*(zip(cycle, cycle[1: ] + [cycle[0]])
-                        for cycle in permutation)))
-
-def to_transpositions(permutation: List[List[Hashable]]) -> List[
-    Tuple[Hashable, Hashable]]:
-    """
-    Convert cyclic form into a product of transpositions.
-
-    If (x[0], x[1], ..., x[m]) is a cycle, a factorization of its
-    inverse is
-    (x[0], x[1]) * (x[1], x[2]) * .. * (x[m-1], x[m])
-
-    Namely (x[0], x[1], ..., x[m]) * (x[0], x[1]) =
-    (x[1], ..., x[m])
-    """
-    _validate_cycle(permutation)
-    return list(reversed(list(chain(*(
-        zip(cycle[: - 1], cycle[1: ])
-        for cycle in permutation)))))
