@@ -15,6 +15,26 @@ from .get_words import get_words
 from .group import minimal_element, to_transpositions
 
 PLACEMENT = Dict[SQUARE, str]
+CONTENTS = Tuple[SQUARE, str]
+
+def detailed_solution(initial: PLACEMENT,
+                      final: PLACEMENT,
+                      perm: List[Tuple[SQUARE, SQUARE]]) -> Iterable[
+                          Tuple[CONTENTS, CONTENTS]]:
+    """
+    Input:
+      initial, final: mapping of squares to letters.
+      perm: a permutation of squares given in cycle form
+    Output:
+      Check whether the permutation applied to initial
+      is equal to final.
+    """
+    current = initial.copy()
+    for elt1, elt2 in perm:
+        val1 = current[elt1]
+        val2 = current[elt2]
+        yield ((elt1, val1), (elt2, val2))
+        current[elt1], current[elt2] = val2, val1
 
 def check_solution(initial: PLACEMENT,
                    final: PLACEMENT,
@@ -30,9 +50,9 @@ def check_solution(initial: PLACEMENT,
     """
     current = initial.copy()
     for elt1, elt2 in perm:
-            current[elt1], current[elt2] = current[elt2], current[elt1]
+        current[elt1], current[elt2] = current[elt2], current[elt1]
     return [(key, val, final[key]) for key, val in current.items()
-            if final[key] != current[key]]
+        if final[key] != current[key]]
 
 def letter_clues(clues: CLUES) -> Dict[str,Tuple[SQUARE,COLOR]]:
     """
@@ -204,6 +224,14 @@ class Waffle:
 
         return {key: val[0] for key, val in self._clues.items()}
 
+    @property
+    def green_squares(self) -> Iterable[SQUARE]:
+        """
+        The sequence of green squares in the initial set.
+        """
+        yield from ((key for key, val in self._clues.items()
+                     if val[1] == COLOR.green))
+
     def solve_words(self, clue_file: str,
                     nocard: bool = False,
                     upper: bool = True,
@@ -253,6 +281,8 @@ class Waffle:
                      solver_opts: Dict | None = None) -> Iterable[
                          Tuple[Dict[SQUARE, str], Dict[int, str]]]:
         """
+        Apparently, the game does *not* allow transposing green
+        letters.
         """
         if solver_opts is None:
             solver_opts = {}
@@ -262,8 +292,9 @@ class Waffle:
             clue_file, **solver_opts):
 
             initial = self.initial_placement.copy()
-            solution = minimal_element(initial, letter_placement,
-                                       **minimal_opts)
+            solution = minimal_element(initial,
+                letter_placement,
+                **minimal_opts)
             perm = to_transpositions(solution)
             yield word_placement, perm
             # We should check the solution
@@ -272,3 +303,7 @@ class Waffle:
                 print(f"Solution check failed: {result}!")
             else:
                 print("Solution checks!")
+                for lft, rgt in detailed_solution(initial,
+                                                  letter_placement,
+                                                  perm):
+                    print(f"{lft} <--> {rgt}")
