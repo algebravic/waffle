@@ -237,7 +237,7 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
     if len(check) > 0:
         print(f"Initial permutation fail: {check}")
     else:
-        print(f"Initial permutation ok: # cycles = {len(iperm_trans)}")
+        print(f"Initial permutation ok: # transposition = {len(iperm_trans)}")
             
     tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
     # Find the invariant subgroup
