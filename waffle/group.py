@@ -6,6 +6,7 @@ from itertools import product, chain, tee
 from collections import Counter
 from sympy.combinatorics.permutations import Permutation 
 from sympy.combinatorics.perm_groups import PermutationGroup
+from sympy.functions.combinatorial.numbers import stirling
 from .clue import SQUARE
 
 PLACEMENT = Dict[SQUARE, str]
@@ -21,6 +22,46 @@ def _validate(placement: PLACEMENT):
                      for _ in placement.keys()))
             and all((isinstance(_, str) for _ in placement.values()))):
         raise ValueError("Input must be a dict indexed by pairs of ints with string values")
+
+def _wrap(cycle: List[int]) -> List[int]:
+    """
+    Cyclically permute so that the maximum element is at the back
+    """
+    if len(cycle) == 0:
+        return cycle
+    idx = max(range(len(cycle)), key=cycle.__itemgetter__)
+    return  cycle[idx + 1: ] + cycle[: idx + 1] 
+
+def canonical(perm: List[List[int]]) -> List[List[int]]:
+    """
+    Put a cycle form of a permutation in canonical form:
+    1) Each cycle starts with the minimum element
+    2) The cycles are ordered by their minimal element
+    """
+    return list(sorted(map(_wrap, perm), key = lambda _: _[-1]))
+
+def gen_cycle(num: int, kval: int, idx: int) -> List[List[int]]:
+    """
+    Generate an element of S_n with k cycles given by idx 0 origin.
+    """
+    howmany = stirling(num, kval, kind=1)
+    if howmany == 0:
+        return []
+    if idx < 0 or idx >= howmany:
+        raise ValueError(f"index {idx} out of bounds")
+    if num == 1:
+        return [[0]]
+    # Is last element by itself?
+    base = stirling(num - 1, kval - 1, kind = 1)
+    if idx < base:
+        last = gen_cycle(num - 1, kval - 1, idx)
+        return last + [num - 1]
+    ridx = idx - base
+    denom = stirling(num - 1, kval, kind = 1)
+    where = ridx // denom
+    how = ridx % denom
+    cycle = gen_cycle(num - 1, kval - 1, how)
+    return cycle[: where] + cycle[where + 1: ] + [cycle[where] + [num - 1]]
 
 def _reverse(placement: PLACEMENT) -> REVERSE:
     """
@@ -89,7 +130,7 @@ def to_transpositions(permutation: List[List[Hashable]]) -> List[
         zip(cycle[: - 1], cycle[1: ])
         for cycle in permutation)))))
 
-def check_solution(initial: PLACEMENT,
+odef check_solution(initial: PLACEMENT,
                    final: PLACEMENT,
                    perm: List[Tuple[SQUARE, SQUARE]]) -> List[
                        Tuple[SQUARE, str, str]]:
