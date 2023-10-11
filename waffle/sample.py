@@ -7,6 +7,8 @@ from math import exp, log
 from string import ascii_lowercase
 from itertools import chain
 from more_itertools import bucket
+from collections import Counter
+import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn.neighbors import KDTree
 from .clue import BOARD, SQUARE
@@ -43,6 +45,31 @@ def _word_buckets(wordlist: List[str]) -> Dict[Tuple[str, ...], str]:
 
     # buckets has value of an iterable, make it a list
     return {key: list(buckets[key]) for key in buckets}
+
+def letter_status(wordlist: List[str], board: BOARD) -> Dict[SQUARE,
+                                                             np.ndarray]:
+    """
+    Calculate monographic distributions for each square
+
+    For each square, first find the pair (continuent, position)
+    that the square can be in.  For each one of these
+    use the monographic statistics, taking the geometric mean
+    over all such pairs.
+    """
+    degree = len(wordlist[0])
+    num = len(wordlist)
+    squares = set(chain(*board))
+    counters = [Counter((word[idx] for word in wordlist))
+                for idx in range(degree)]
+    probs = [np.array([ctr[ltr] for ltr in ascii_lowercase]) / num
+                      for ctr in counters]
+    where = ((pidx, idx, square) for pidx, place in enumerate(board) for idx, square in enumerate(place))
+    buckets = bucket(where, lambda _: _[2])
+    out = {}
+    for square in squares:
+        lprobs = np.array([probs[idx] for _, idx, _ in buckets[square]])
+        out[square] = lprobs.prod(axis=0) ** (1.0 / lprobs.shape[0])
+    return out
 
 def waffle_sample(wordlist: List[str]) -> List[str]:
     """
@@ -85,6 +112,7 @@ def _scoreit(state: Dict[Tuple[str, ...], str],
 
 def metropolis(wordlist: List[str],
                temperature: float,
+               distribute: bool = False,
                trace: int = 0,
                burnin: int = 1000) -> List[str]:
     """
@@ -129,6 +157,7 @@ def metropolis(wordlist: List[str],
 class MetropolisBoard:
     def __init__(self, wordlist: List[str],
                  board: BOARD,
+                 distribute: bool = False,
                  hamming: bool = True):
 
         self._wordlist = wordlist.copy()
@@ -140,6 +169,12 @@ class MetropolisBoard:
                 leaf_size=30, metric='manhattan')
         else:
             self._lookup = set(self._wordlist)
+        if distribute:
+            self._distr = letter_status(wordlist, board)
+        else: # Uniform distribution
+            unif = np.ones(len(ascii_lowercase)) / len(ascii_lowercase)
+            squares = set(chain(*board))
+            self._distr = {square: unif for square in squares}
         self._assign = None
 
     def _basic(self, words: List[str]) -> float:
@@ -165,8 +200,9 @@ class MetropolisBoard:
 
         squares = list(sorted(set(chain(*self._board))))
         # initial guess
-        self._assign = dict(zip(squares,
-            choices(ascii_lowercase, k = len(squares))))
+        self._assign = {square: choices(ascii_lowercase,
+                                       weights = self._distr[square])[0]
+                        for square in squares}
         tries = 0
         taken = 0
         score = self._score()
@@ -184,7 +220,7 @@ class MetropolisBoard:
             old = self._assign[where]
             how = old
             while True:
-                how = choice(ascii_lowercase)
+                how = choices(ascii_lowercase, weights = self._distr[where])[0]
                 if how != old:
                     break
             self._assign[where] = how
