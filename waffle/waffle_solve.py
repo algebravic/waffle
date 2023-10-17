@@ -162,7 +162,7 @@ class Waffle:
                 # Count up the color codes for this letter
                 greens = [_[0] for _ in values
                           if _[1] == COLOR.green]
-                yellow = [_[0] for _ in values
+                yellows = [_[0] for _ in values
                           if _[1] == COLOR.yellow]
                 blacks = [_[0] for _ in values
                           if _[1] == COLOR.black]
@@ -174,7 +174,7 @@ class Waffle:
                 if len(yellows + blacks) == 0: # No more restrictions
                     continue
                 self._cnf.extend([[-self._pool.id(('s', square, letter))]
-                                   for square in yellow + blacks])
+                                   for square in yellows + blacks])
                 other = set(place).difference(
                     [_[0] for _ in values])
                 lower = len(internals)
@@ -182,6 +182,7 @@ class Waffle:
                          else len(other))
                 if self._verbose > 1:
                     print(f"other {other}, letter = {letter}, interval = ({lower}, {upper})")
+                    print(f"yellows = {yellows}, blacks = {blacks}")
                 
                 rest = [self._pool.id(('s', square, letter))
                     for square in other]
