@@ -130,7 +130,7 @@ def to_transpositions(permutation: List[List[Hashable]]) -> List[
         zip(cycle[: - 1], cycle[1: ])
         for cycle in permutation)))))
 
-odef check_solution(initial: PLACEMENT,
+def check_solution(initial: PLACEMENT,
                    final: PLACEMENT,
                    perm: List[Tuple[SQUARE, SQUARE]]) -> List[
                        Tuple[SQUARE, str, str]]:
@@ -242,6 +242,7 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
     return best
 
 def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
+                  verbose: int = 0,
                   limit: int | None = None) -> Permutation:
     """
     Input:
@@ -253,13 +254,35 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
     """
     # return max((_ * coset_rep for _ in subgrp._elements),
     #            key = lambda _: _.cycles)
-
+    if verbose:
+        stats = Counter(((coset_rep * _).cycles
+                         for _ in subgrp._elements))
+        print(f"Census = {stats}")
     return max((coset_rep * _ for _ in subgrp._elements),
                key = lambda _: _.cycles)
 
 # sympy permutations need integers
+def stabilizer_group(part: List[List[Hashable]]) -> PermutationGroup:
+    """
+    Given a partition of a set, return the colored stabilizer group,
+    where the mapping of elements to integers is via sorting.
+    """
+    elts = list(chain(*part))
+    degree = len(elts)
+    if len(set(elts)) != degree:
+        raise ValueError("Elements in the partition are not distinct")
+    trans = {elt: ind for ind, elt in enumerate(sorted(elts))}
+    parts = list(map(lambda arg: [trans[_] for _ in arg], part))
+    print(f"partition = {list(map(len, parts))}")
+    gens = chain(*map(sym_gens, parts))
+    return PermutationGroup([Permutation([_], size = degree)
+                             for _ in gens])
+    
 def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
+                    find_conjugacy: bool = False,
+                    limit: int = 1024,
                     exhaust: bool = False,
+                    verbose: int = 0,
                     hillclimb_opts: Dict | None = None) -> SQUARE_PERM:
 
     # First create the mapping to a from indices
@@ -280,23 +303,25 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
     else:
         print(f"Initial permutation ok: # transposition = {len(iperm_trans)}")
             
-    tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
     # Find the invariant subgroup
-    part = placement_partition(solution)
-    parts = map(lambda _: [back[elt] for elt in _], part)
-    # Create the Coxeter generators
-    gens = chain(*map(sym_gens, parts))
-    grp = PermutationGroup([Permutation([_], size = degree)
-        for _ in gens])
+    grp = stabilizer_group(placement_partition(solution))
+    print(f"generators = {grp.generators}")
     print(f"Group size = {grp.order()}")
-    
-    if exhaust:
-        max_elt = exhaust_coset(tperm, grp)
+    tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
+    print(f"order centralizer of tperm = {grp.centralizer(tperm).order()}")
+    if grp.order() <= limit or exhaust:
+        print("Exhausting")
+        max_elt = exhaust_coset(tperm, grp, verbose=verbose)
     else: # Do a hillclimb
+        print("Hill Climbing")
         if hillclimb_opts is None:
             hillclimb_opts = {}
         max_elt = hillclimb(tperm, grp, **hillclimb_opts)
     # Now convert back to cyclic form
+    if find_conjugacy:
+        # find the index of the stabilizer of max_elt
+        centralizer_index = grp.order() // grp.centralizer(max_elt).order()
+        print(f"centralizer index = {centralizer_index}")
     return [[forward[_] for _ in cycle]
             for cycle in max_elt.cyclic_form]
 
