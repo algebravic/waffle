@@ -2,13 +2,15 @@
 Count permutations of n letters with k cycles
 which can be obtained as a product of n-k transpositions.
 """
-from typing import List, Tuple, Set, Dict, Iterable
+from typing import List, Tuple, Set, Dict, Iterable, Any
+from functools import partial
 from itertools import combinations
 import networkx as nx
 from sympy.utilities.iterables import partitions
 
 PART = Tuple[Tuple[int, int], ...]
 DPART = Dict[int, int]
+FUNC = Callable[[Any], Any]
 
 def _normalize(dct: Dict[int, int]) -> Dict[int, int]:
     """
@@ -30,9 +32,22 @@ def _check(standard: PART, nxt: DPART, msg: str):
     if _total(nxt) != _total(dict(standard)):
         print(f"Error {msg}: {standard} -> {_normalize(nxt)}")
 
+def function_power(func: FUNC, power: int) -> FUNC:
+    """
+    Function power.
+    """
+    if power < 0:
+        raise ValueError(f"power = {power} not allowed.")
+    elif power == 0:
+        return lambda _: _
+    elif power == 1:
+        return func
+    else:
+        return lambda _: function_power(func, power - 1)(func(_))
+
 def transposition_edges(num: int) -> Iterable[Tuple[DPART, DPART, int]]:
     """
-    Produce a diagraph whose nodes are the partitions
+    Produce a digraph whose nodes are the partitions
     of n, and whose weighted edges correspond to
     multiplying by the conjugacy class of a transposition.
     More specifically if K_1 denotes the conjugacy class
@@ -120,8 +135,8 @@ def transposition_graph(num: int) -> nx.DiGraph:
         gph.add_edge(source, _normalize(sink), weight = weight)
     return gph
 
-def transition(state: Dict[DPART, int],
-               gph: nx.DiGraph) -> Dict[DPART, int]:
+def transition(gph: nx.DiGraph,
+               state: Dict[DPART, int]) -> Dict[DPART, int]:
     """
     From a weighted state: a weighted vertex set
     and a digraph: follow the edges.
@@ -134,15 +149,15 @@ def transition(state: Dict[DPART, int],
             res[sink] = res.get(sink, 0) + add_wgt
     return res
 
-def power(state: Dict[DPART, int],
-          gph: nx.DiGraph,
-          mult: int) -> Dict[DPART, int]:
+def power(gph: nx.DiGraph,
+          mult: int,
+          state: Dict[DPART, int]) -> Dict[DPART, int]:
 
     if mult <= 0:
         return state
     tmp = state
     for ind in range(mult):
-        tmp = transition(tmp, gph)
+        tmp = transition(gph, tmp)
     return tmp
 
 def by_cycles(state: Dict[DPART, int]) -> Dict[int, int]:
@@ -162,6 +177,6 @@ def cycle_census(num: int, kval: int) -> Dict[int, int]:
     uniformly chosen in permutations of degree n.
     """
     # start: concentrated on the identity
-    return by_cycles(power({((1, num),) : 1},
-                           transposition_graph(num),
-                           kval))
+    return by_cycles(power(transposition_graph(num),
+                           kval,
+                           {((1, num),) : 1}))
