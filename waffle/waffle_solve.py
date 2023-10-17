@@ -2,7 +2,7 @@
 Use a SAT solver to find solutions to Waffle.
 """
 
-from typing import List, Tuple, Dict, Iterable
+from typing import List, Tuple, Dict, Iterable, Set
 from string import ascii_lowercase
 from enum import Enum
 from itertools import chain, product
@@ -47,6 +47,14 @@ def letter_clues(clues: CLUES) -> Dict[str,Tuple[SQUARE,COLOR]]:
         out[letter].append((square, color))
     return out
 
+def restrict(dct: Dict, restriction: Set) -> Dict:
+    """
+    Return a dict whose keys are restricted to those
+    in restriction.
+    """
+    return {key: val for key, val in dct.items()
+            if key in restriction}
+
 class Waffle:
     """
     Solve the waffle game from only the initial clues.
@@ -61,7 +69,7 @@ class Waffle:
         self._board = list(waffle_board(size))
         self._squares = set(chain(*self._board))
         self._internal = {square
-            for square, count in Counter(chain(*self._board))
+            for square, count in Counter(chain(*self._board)).items()
             if count == 1}
         self._wordlist = list(get_words(wordlist, wlen = size))
         self._verbose = verbose
@@ -145,52 +153,54 @@ class Waffle:
         # for the letter
         # In particular, if there are no yellow, the letter can't
         # appear at all
-        for place in self._board:
+        for idx, place in enumerate(self._board):
             # Get the clues for this place
             local_clues = letter_clues({square: val
                 for square, val in self._clues.items()
                 if square in place})
             for letter, values in local_clues.items():
                 # Count up the color codes for this letter
-                lower = 0
-                upper = 0
-                nongreen = False
+                greens = [_[0] for _ in values
+                          if _[1] == COLOR.green]
+                yellow = [_[0] for _ in values
+                          if _[1] == COLOR.yellow]
+                blacks = [_[0] for _ in values
+                          if _[1] == COLOR.black]
+                internals = self._internal.intersection(yellows)
                 # The remaining squares influenced by clues for this leter
-                eligible = set(place)
-                for square, color in values:
-                    eligible.remove(square)
-                    svar = self._pool.id(('s', square, letter))
-                    if color == COLOR.green:
-                        # This square is correct
-                        self._cnf.append([svar])
-                    else:
-                        # This square is incorrect
-                        nongreen = True
-                        self._cnf.append([-svar])
-                        if color == COLOR.yellow:
-                            upper += 1
-                            if square in self._internal:
-                                lower += 1
-                if not nongreen:
+                self._cnf.extend([[self._pool.id(('s', square, letter))]
+                                   for square in greens])
+
+                if len(yellows + blacks) == 0: # No more restrictions
                     continue
+                self._cnf.extend([[-self._pool.id(('s', square, letter))]
+                                   for square in yellow + blacks])
+                other = set(place).difference(
+                    [_[0] for _ in values])
+                lower = len(internals)
+                upper = (len(yellows) if len(blacks) > 0
+                         else len(other))
+                if self._verbose > 1:
+                    print(f"other {other}, letter = {letter}, interval = ({lower}, {upper})")
+                
                 rest = [self._pool.id(('s', square, letter))
-                    for square in eligible]
-                if upper == 0:
+                    for square in other]
+
+                if upper == 0: # only blacks
                     self._cnf.extend([[- _] for _ in rest])
                 else:
                     # if only blacks, all eligible are not this letter
-                    if self._allow_yellow: 
-                        if lower > 0:
-                            self._cnf.extend(CardEnc.atleast(lits = rest,
-                                                            bound = lower,
-                                                            encoding = self._encoding,
-                                                            vpool = self._pool))
-                        # yellows should be an upper bound
-                        if self._upper:
-                            self._cnf.extend(CardEnc.atmost(lits = rest,
-                                                            bound = upper,
-                                                            encoding = self._encoding,
-                                                            vpool = self._pool))
+                    if lower > 0:
+                        self._cnf.extend(CardEnc.atleast(lits = rest,
+                                                         bound = lower,
+                                                         encoding = self._encoding,
+                                                         vpool = self._pool))
+                    # yellows should be an upper bound
+                    if self._upper and upper < len(other):
+                        self._cnf.extend(CardEnc.atmost(lits = rest,
+                                                        bound = upper,
+                                                        encoding = self._encoding,
+                                                        vpool = self._pool))
                     
                         
 
@@ -217,7 +227,7 @@ class Waffle:
     def solve_words(self, clue_file: str,
                     nocard: bool = False,
                     upper: bool = True,
-                    allow_yellow: bool = False,
+                    allow_yellow: bool = True,
                     solver_name: str = 'cd153') -> Iterable[
                         Tuple[Dict[SQUARE, str], Dict[int, str]]]:
         """
