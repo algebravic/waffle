@@ -55,6 +55,31 @@ def restrict(dct: Dict, restriction: Set) -> Dict:
     return {key: val for key, val in dct.items()
             if key in restriction}
 
+def royale() -> BOARD:
+    """
+    Waffle Royale board
+    """
+    yield [(_, 1) for _ in range(1,6)]
+    yield [(_, 3) for _ in range(0,7)]
+    yield [(_, 5) for _ in range(1,6)]
+    yield [(1, _) for _ in range(1,6)]
+    yield [(3, _) for _ in range(0,7)]
+    yield [(5, _) for _ in range(1,6)]
+
+def boards(sizes: int | Tuple[int, int]) -> BOARD:
+    """
+    Generate boards for waffle/deluxe and/or royale.
+    """
+    if isinstance(sizes, int):
+        # Oridnary Waffle
+        return waffle_board(sizes)
+    elif (isinstance(sizes, tuple)
+          and len(sizes) == 2
+          and all((isinstance(_, int) and (_ % 2 == 1) for _ in sizes))):
+        # Alternate between the two sizes in both
+        # rows and columns
+        pass
+    
 class Waffle:
     """
     Solve the waffle game from only the initial clues.
@@ -84,6 +109,9 @@ class Waffle:
         """
         The basic model before clues.
         """
+        # Initialize
+        self._cnf = CNF()
+        self._pool = IDPool()
         # Each square has a letter
         for square in self._squares:
             choice = [self._pool.id(('s', square, _))
@@ -240,8 +268,6 @@ class Waffle:
         # print out clues
         if self._verbose > 0:
             print_clues(self._clues)
-        self._cnf = CNF()
-        self._pool = IDPool()
         self._basic()
         self._add_clues(nocard = nocard)
         solver = Solver(name = solver_name, bootstrap_with = self._cnf,
