@@ -29,8 +29,8 @@ def _wrap(cycle: List[int]) -> List[int]:
     """
     if len(cycle) == 0:
         return cycle
-    idx = max(range(len(cycle)), key=cycle.__itemgetter__)
-    return  cycle[idx + 1: ] + cycle[: idx + 1] 
+    idx = max(range(len(cycle)), key=lambda _: cycle[_])
+    return  cycle[idx: ] + cycle[: idx] 
 
 def canonical(perm: List[List[int]]) -> List[List[int]]:
     """
@@ -38,7 +38,7 @@ def canonical(perm: List[List[int]]) -> List[List[int]]:
     1) Each cycle starts with the minimum element
     2) The cycles are ordered by their minimal element
     """
-    return list(sorted(map(_wrap, perm), key = lambda _: _[-1]))
+    return list(sorted(map(_wrap, perm), key = lambda _: _[0]))
 
 def gen_cycle(num: int, kval: int, idx: int) -> List[List[int]]:
     """
