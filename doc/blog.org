@@ -103,3 +103,69 @@ $g_1, \dots, g_m$, and $\pi \in S_n$.  Determine an element of $G \pi$
 with the largest number of cycles.
 
 Question: Can this be done using the Schreier-Sims algorithm?
+
+* Sampling Waffle grids
+
+If we have a vocabulary list, $L$, we would like to uniformly sample
+all possible $n \times n$ waffle grids (here $n$ is odd).  A path to
+this goal is via the Metropolis-Hastings algorithm.  The idea of the
+MH algorithm is to construct a distribution $\mathcal{D}$ of all grids
+populated by letters, whether valid (i.e. composed of only words in
+the vocabulary, with no duplicated words) or not.  We would like there
+to be a positive constant $c > 0$ so that $\Pr_{\mathcal{D}}(w) = c$
+for each valid grid.  If we can (approximately) sample from
+$\mathcal{D}$ then we can use rejection sampling: keep generating a
+sample $X \sim \mathcal{D}$ until $X$ is valid.
+
+The Metropolis-Hastings algorithm constructs an ergodic, reversible
+Markov chain from an *energy function* $E(w) \ge 0$, where $E(w) = 0$
+if and only if $w$ is valid.  The Markov chain will thus have a unique
+invariant distribution, which will be our sought for distribution
+$\mathcal{D}$.
+
+Let $\pi(x)$ denote the invariant distribution of the Markov chain and
+$\mu(x,y)$ denote the transition probability of going from state $x$
+to state $y$.  Then the reversibility condition is
+$\pi(x)p(x,y) = \pi(y) p(y,x)$.
+
+In the simple chain described in "It's Puzzling", we have
+$p(x,y) = 1/N(x) \min(1, \exp( - \Delta E(x,y)/ T)$ if $y$ is a
+neighbor of $x$, and $N(x)$ is the number of neighbors of $x$, and 0
+otherwise.   We set $p(x,x) = 1 - \sum_{y \sim x} p(x,y)$, where $y
+\sim x$ indicates that $y$ is a neighbor of $x$.  Here $\Delta E(x,y)
+= E(y) - E(x)$, where $E(x) \ge 0$ is an energy function.
+
+We set $Z = \sum_x \exp(-E(x) / T)$.  We want $\mu(x) = \exp(-E(x)/T)
+/ Z$.  
+
+Suppose that we change the transition probabilities.
+
+* Samplers
+There's an extensive literature about uniform (or close to uniform)
+samplers for SAT.  In particular, Meel, and his collaborators have
+also described testers for being close to uniform.  In "Testing of
+Horn Samplers", Ansuman Banerjee, Shayak Chakraborty, Sourav
+Chakraborty, Kuldeep Meel, Uddalok Sarkar, and Sayantan Sen, describe
+a testing procedure for Horn Samplers.  Recall that a *Horn Clause* is
+one in which at most 1 of the literals is positive.  A system of *renameable
+Horn Clauses* is  one in which there is a favored parity for each
+literal, and each clause contains at most 1 literal which has the
+opposite of the favored parity.
+
+In the SAT formulation for placement of words on a a board, we have
+the following sets: $W$ is the set of words in the vocabulary, $P$ is
+the set of "places" (rows or columns), $A$ is the alphabet.
+We have boolean variables:
+$w_{i,j}$: true if and only if the $i$-th
+word is placed on place $j \in P$; $s_{l,t}$: true if and only if the
+$l$-th letter is placed on square $t$.  We have the following
+constraints:
+
+1) At most one of $\{w_{i,j}: j \in P\}$ (no repeats).
+2) Exactly one of $\{w_{i,j} : i \in W\}$ (each place gets a word).
+3) $w_{i,j} \Rightarrow s_{l,t}$ if square $t$ is the $k$-th square in
+   place $j$, and $l$ is the $k$-th letter in word $i$.
+4) (optional) Exactly one of $\{s_{l,t}: l \in L\}$ for all $t$.
+(this can be relaxed to at most one, since (2) and (3) imply that at
+least one is true).
+
