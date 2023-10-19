@@ -8,6 +8,7 @@ https://mathoverflow.net/questions/3330/how-can-i-generate-random-permutations-o
 from typing import List
 from itertools import chain
 import numpy as np
+from .group import canonical
 
 def feller_representation(num: int, theta: float) -> List[int]:
     """
@@ -50,7 +51,7 @@ def chinese_restaurant(num: int, theta: float) -> List[int]:
     return blocks
     
 def optimal_value(num: int, kval: int,
-                  epsilon: float = 1.0e-5,
+                  epsilon: float = 1.0e-8,
                   verbose: int = 0) -> float:
     """
     Find theta such that
@@ -78,15 +79,20 @@ def optimal_value(num: int, kval: int,
             return theta
         theta = theta_new
 
-def rejection_sample(num: int, kval: int) -> List[List[int]]:
+def rejection_sample(num: int, kval: int,
+                     verbose: int = 0) -> List[List[int]]:
     """
     A random permutation with exactly k cycles.
     """
-    theta = optimal_value(num, kval)
+    theta = optimal_value(num, kval, verbose = verbose)
+    tries = 0
     while True:
+        tries += 1
         breaks = feller_representation(num, kval)
         if len(breaks) == kval + 1:
             break
+    if verbose > 0:
+        print(f"Succeeded in {tries} tries")
     values = np.random.permutation(np.arange(num)).tolist()
-    return [values[_[0]: _[1]]
-            for _ in zip(breaks[: -1], breaks[1: ])]
+    return canonical([values[_[0]: _[1]]
+            for _ in zip(breaks[: -1], breaks[1: ])])
