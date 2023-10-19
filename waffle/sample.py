@@ -16,6 +16,9 @@ from .clue import BOARD, SQUARE
 def wordlist_to_vec(wordlist: List[str]):
     """
     Convert a wordlist to a 1-hot sparse encoding.
+
+    Each row corresponds to a word.
+    There are 26 * m columns where m is the word length
     """
     degree = len(wordlist[0])
     num = len(wordlist)
