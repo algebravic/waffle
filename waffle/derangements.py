@@ -104,7 +104,6 @@ def unrank_associated(num: int, kval: int, idx: int) -> CYCLE_PERM | None:
             rem_prime = rem - val2
             sub_perm = unrank_associated(num - 2, kval - 1, rem_prime)
             return tuple(map(partial(_promote, quo), sub_perm)) + ((quo, num - 1),)
-
     else:
         return None
 
@@ -138,7 +137,7 @@ def rank_associated(cperm: CYCLE_PERM) -> int:
     else:
         raise ValueError("Cycle of size 1 encountered")
 
-def test_rank(num: int, kval: int) -> bool:
+def test_associated_rank(num: int, kval: int) -> bool:
     """
     Generate a random associated permutation of type (n,k).
     First choose a uniform random in [0,d(n,k))
