@@ -11,7 +11,9 @@ from collections import Counter
 import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn.neighbors import KDTree
+import pycmsgen
 from .clue import BOARD, SQUARE
+from .waffle_solve import Waffle
 
 def wordlist_to_vec(wordlist: List[str]):
     """
@@ -237,3 +239,16 @@ class MetropolisBoard:
             else:
                 # reject, and put back the old state
                 self._assign[where] = old 
+
+def cms_sample(waf: Waffle) -> Iterable[Tuple[str, 0]]:
+
+    board = waf._board
+    solver = pycmsgen.Solver()
+    waf._basic()
+    solver.add_clauses(waf._cnf.clauses)
+    while True:
+        status = solver.solve()
+        if not status:
+            break
+        pos = [waf._pool.obj(_) for _ in solver.get_model() if _ > 0]
+        yield [_[1: ] for _ in pos if _ is not None and _[0] == 'w']
