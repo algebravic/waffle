@@ -8,13 +8,17 @@ DATADIR = 'data/dictionaries'
 
 def get_words(data: str = 'wordlist', wlen: int = 5) -> Iterable[str]:
     """
-    Get the word list.
+    Get the word list.  If wlen > 0, only get words of that length.
     """
     fname = ('/usr/share/dict/words' if data == 'system'
              else f"{DATADIR}/{data}.txt")
     with open(fname) as myfile:
-        yield from ((_[: -1].lower() for _ in myfile.readlines()
-                    if len(_[: -1]) == wlen and _[: - 1].isalpha()))
+        words = ((_[: -1].lower() for _ in myfile.readlines()
+            if  _[: - 1].isalpha()))
+        if wlen > 0:
+            yield from (_ for _ in words if len(_) == wlen)
+        else:
+            yield from words
 
 def system_words(size: int) -> Iterable[str]:
     with open('/usr/share/dict/words', 'r') as myfile:
