@@ -153,7 +153,7 @@ def check_solution(initial: PLACEMENT,
 
 def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     """
-    Inputs: intial and solution are dictionaries with the same key set.
+    Inputs: initial and solution are dictionaries with the same key set.
     and value multiset.  Output a permutation of the key set,
     which transforms initial to solution.
 
@@ -216,6 +216,7 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
               tenure: int = 10,
               limit: int | None = None,
               iterations: int = 100,
+              verbose: int = 0,
               trace: int = 0) -> Permutation:
     """
     Do a discrete hillclimb to find (or approximate) a permutation
@@ -238,7 +239,8 @@ def hillclimb(perm: Permutation, grp: PermutationGroup,
             print(f"Best = {best.cycles}")
             print(f"tst = {tst.cycles}")
         # Keep going until we reach a hilltop
-    print(f"histogram = {count}")
+    if verbose > 0:
+        print(f"histogram = {count}")
     return best
 
 def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
@@ -254,7 +256,7 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
     """
     # return max((_ * coset_rep for _ in subgrp._elements),
     #            key = lambda _: _.cycles)
-    if verbose:
+    if verbose > 0:
         stats = Counter(((coset_rep * _).cycles
                          for _ in subgrp._elements))
         print(f"Census = {stats}")
@@ -262,7 +264,8 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
                key = lambda _: _.cycles)
 
 # sympy permutations need integers
-def stabilizer_group(part: List[List[Hashable]]) -> PermutationGroup:
+def stabilizer_group(part: List[List[Hashable]],
+                     verbose: int = 0) -> PermutationGroup:
     """
     Given a partition of a set, return the colored stabilizer group,
     where the mapping of elements to integers is via sorting.
@@ -273,7 +276,8 @@ def stabilizer_group(part: List[List[Hashable]]) -> PermutationGroup:
         raise ValueError("Elements in the partition are not distinct")
     trans = {elt: ind for ind, elt in enumerate(sorted(elts))}
     parts = list(map(lambda arg: [trans[_] for _ in arg], part))
-    print(f"partition = {list(map(len, parts))}")
+    if verbose > 0:
+        print(f"partition = {list(map(len, parts))}")
     gens = chain(*map(sym_gens, parts))
     return PermutationGroup([Permutation([_], size = degree)
                              for _ in gens])
@@ -283,17 +287,23 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
                     limit: int = 1024,
                     exhaust: bool = False,
                     verbose: int = 0,
+                    restrict: bool = True,
                     hillclimb_opts: Dict | None = None) -> SQUARE_PERM:
 
     # First create the mapping to a from indices
-    disagree = set((square for square, letter in initx.items()
-        if letter != soln[square]))
-    initial = {key: initx[key] for key in disagree}
-    solution = {key: soln[key] for key in disagree}
+    if restrict:
+        disagree = set((square for square, letter in initx.items()
+            if letter != soln[square]))
+        initial = {key: initx[key] for key in disagree}
+        solution = {key: soln[key] for key in disagree}
+    else:
+        initial = initx.copy()
+        solution = soln.copy()
     forward = dict(enumerate(sorted(initial.keys())))
     back = {_[1]: _[0] for _ in forward.items()}
     degree = len(initial.keys())
-    print(f"degree = {degree}")
+    if verbose > 0:
+        print(f"degree = {degree}")
 
     iperm = initial_permutation(initial, solution)
     iperm_trans = to_transpositions(to_cycle(iperm))
@@ -304,11 +314,14 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
         print(f"Initial permutation ok: # transposition = {len(iperm_trans)}")
             
     # Find the invariant subgroup
-    grp = stabilizer_group(placement_partition(solution))
-    print(f"generators = {grp.generators}")
-    print(f"Group size = {grp.order()}")
+    grp = stabilizer_group(placement_partition(solution),
+        verbose=verbose)
+    if verbose > 0:
+        print(f"generators = {grp.generators}")
+        print(f"Group size = {grp.order()}")
     tperm = Permutation([back[_[1]] for _ in sorted(iperm.items())])
-    print(f"order centralizer of tperm = {grp.centralizer(tperm).order()}")
+    if verbose > 0:
+        print(f"order centralizer of tperm = {grp.centralizer(tperm).order()}")
     if grp.order() <= limit or exhaust:
         print("Exhausting")
         max_elt = exhaust_coset(tperm, grp, verbose=verbose)
@@ -321,7 +334,8 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
     if find_conjugacy:
         # find the index of the stabilizer of max_elt
         centralizer_index = grp.order() // grp.centralizer(max_elt).order()
-        print(f"centralizer index = {centralizer_index}")
+        if verbose > 0:
+            print(f"centralizer index = {centralizer_index}")
     return [[forward[_] for _ in cycle]
             for cycle in max_elt.cyclic_form]
 
