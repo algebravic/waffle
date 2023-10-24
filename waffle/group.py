@@ -171,6 +171,15 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     _validate(solution)
     if not (set(initial.keys()) == set(solution.keys())
             and Counter(initial.values()) == Counter(solution.values())):
+        # calculate disagreements
+        key_diff = set(initial.keys()).symmetric_difference(solution.keys())
+        if len(key_diff) > 0:
+            print(f"key disagreement: {key_diff}")
+        key_common = set(initial.keys()).intersection(solution.keys())
+        val_common = [(key, initial[key], solution[key]) for key in key_common]
+        val_diff = [_ for _ in val_common if _[1] != _[2]]
+        if len(val_diff) > 0:
+            print(f"value disagreement: {val_diff}")
         raise ValueError("initial and placement not permutable")
     outperm = {}
     rinit = _reverse(initial)
