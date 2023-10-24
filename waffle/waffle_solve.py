@@ -87,7 +87,7 @@ class Waffle:
 
     def __init__(self,
                  size: int = 5,
-                 wordlist: str = 'wordle',
+                 wordlist: str | Iterable[str] = 'wordle',
                  encoding: str = 'totalizer',
                  verbose: int = 0):
 
@@ -96,7 +96,12 @@ class Waffle:
         self._internal = {square
             for square, count in Counter(chain(*self._board)).items()
             if count == 1}
-        self._wordlist = list(get_words(wordlist, wlen = size))
+        if isinstance(wordlist, str): # A file name
+            self._wordlist = list(get_words(wordlist, wlen = size))
+        elif isinstance(wordlist, Iterable):
+            self._wordlist = list(wordlist)
+        else:
+            raise ValueError("Illegal value for wordlist")
         self._verbose = verbose
         if self._verbose > 0:
             print(f"There are {len(self._wordlist)} words in the word list")
