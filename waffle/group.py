@@ -40,29 +40,6 @@ def canonical(perm: List[List[int]]) -> List[List[int]]:
     """
     return list(sorted(map(_wrap, perm), key = lambda _: _[0]))
 
-def gen_cycle(num: int, kval: int, idx: int) -> List[List[int]]:
-    """
-    Generate an element of S_n with k cycles given by idx 0 origin.
-    """
-    howmany = stirling(num, kval, kind=1)
-    if howmany == 0:
-        return []
-    if idx < 0 or idx >= howmany:
-        raise ValueError(f"index {idx} out of bounds")
-    if num == 1:
-        return [[0]]
-    # Is last element by itself?
-    base = stirling(num - 1, kval - 1, kind = 1)
-    if idx < base:
-        last = gen_cycle(num - 1, kval - 1, idx)
-        return last + [num - 1]
-    ridx = idx - base
-    denom = stirling(num - 1, kval, kind = 1)
-    where = ridx // denom
-    how = ridx % denom
-    cycle = gen_cycle(num - 1, kval - 1, how)
-    return cycle[: where] + cycle[where + 1: ] + [cycle[where] + [num - 1]]
-
 def _reverse(placement: PLACEMENT) -> REVERSE:
     """
     Reverse a dictionary
