@@ -6,7 +6,8 @@ from functools import cache, partial
 from random import randint
 from itertools import chain
 from sympy import factorial
-from .derangements import CYCLE CYCLE_PERM, _validate_cycle, _insert, _demote
+from .derangements import CYCLE, CYCLE_PERM
+from .derangements import _rotate, _validate_cycle, _insert, _demote
 
 @cache
 def stirling(num: int, kval: int) -> int:
@@ -20,13 +21,13 @@ def stirling(num: int, kval: int) -> int:
     of n-1 elements.  It can be place in n-1 ways:
     after each element in 1..n-1 in its cycle.
     """
-    if num < kval:
-        return 0
-    elif kval == 1:
+    if kval == 1:
         return int(factorial(num - 1))
     elif num > 1:
         return (stirling(num - 1, kval - 1)
                 + (num - 1) * stirling(num - 1, kval))
+    else:
+        return 0
 
 def unrank_stirling(num: int, kval: int, idx: int) -> CYCLE_PERM | None:
     """
@@ -36,7 +37,7 @@ def unrank_stirling(num: int, kval: int, idx: int) -> CYCLE_PERM | None:
         raise ValueError(f"Index out of bounds ({num}, {kval}, {idx})")
 
     if num == 1 and kval == 1:
-        return ((0,))
+        return ((0,),)
     elif num > 1:
         val1 = stirling(num - 1, kval - 1)
         val2 = stirling(num - 1, kval)
@@ -49,7 +50,7 @@ def unrank_stirling(num: int, kval: int, idx: int) -> CYCLE_PERM | None:
             if val2 == 0:
                 return None
             quo = rest // val2
-            rem = idx % val2
+            rem = rest % val2
             sub_perm = unrank_stirling(num - 1, kval, rem)
             return tuple(map(partial(_insert, quo, num - 1), sub_perm))
 
@@ -74,7 +75,7 @@ def rank_stirling(cperm: CYCLE_PERM) -> int:
         val2 = stirling(num - 1, kval)
         multiplier = the_cycle[-1] # insertion point is at the end
         # remove n from its cycle
-        sub_perm = cperm[: idx] + [the_cycle[1: ]] + cperm[idx + 1: ]
+        sub_perm = cperm[: idx] + (the_cycle[1: ],) + cperm[idx + 1: ]
         return val1 + multiplier * val2 + rank_stirling(sub_perm)
 
 def test_stirling_rank(num: int, kval: int) -> bool:
@@ -88,4 +89,3 @@ def test_stirling_rank(num: int, kval: int) -> bool:
     cperm = unrank_stirling(num, kval, idx)
     rnk = rank_stirling(cperm)
     return idx == rnk
-    
