@@ -2,7 +2,7 @@
 Count permutations of n letters with k cycles
 which can be obtained as a product of n-k transpositions.
 """
-from typing import List, Tuple, Set, Dict, Iterable, Any
+from typing import List, Tuple, Set, Dict, Iterable, Any, Callable
 from functools import partial
 from itertools import combinations
 import networkx as nx
@@ -180,3 +180,11 @@ def cycle_census(num: int, kval: int) -> Dict[int, int]:
     return by_cycles(power(transposition_graph(num),
                            kval,
                            {((1, num),) : 1}))
+
+def cycle_probabilities(num: int, kval: int) -> Dict[int, float]:
+    """
+    Scale the census to reflect probabilities.
+    """
+    census = cycle_census(num, kval)
+    denom = sum(census.values())
+    return {key: val / denom for key, val in census.items()}
