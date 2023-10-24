@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Set, Iterable
 from collections import Counter
 from itertools import chain
 from heapq import heappop, heappush, heapify
+import nltk.corpus
 from .get_words import DATADIR, get_words
 
 CODE = Tuple[int, int]
@@ -36,7 +37,7 @@ def produce_bits(root: Node) -> Iterable[Tuple[str, str]]:
         yield from ((_[0], '0' + _[1]) for _ in produce_bits(lft))
         yield from ((_[0], '1' + _[1]) for _ in produce_bits(rgt))
 
-def produce_code(stats: Dict[str, float]) -> Dict[str, CODE]:
+def produce_table(stats: Dict[str, float]) -> Dict[str, CODE]:
     """
     Input: A dictionary keyed by string, whose values
     are nonnegative floats giving the relative frequency
@@ -51,16 +52,67 @@ def produce_code(stats: Dict[str, float]) -> Dict[str, CODE]:
         one = heappop(table)
         heappush(table, Node(zero._prob + one._prob, (zero, one)))
     # Now table[0] is the root of the tree
-    return dict(produce_bits(table[0]))
+    return table[0]
+
+def produce_code(stats: Dict[str, float]) -> Dict[str, CODE]:
+    """
+    """
+    return dict(produce_bits(produce_table(stats)))
 
 def get_stats(words: Iterable[str]) -> Dict[str, float]:
     """
     
     """
-    count = Counter(chain(*words))
+    count = Counter(words)
     denom = sum(count.values())
     return {key: val / denom for key, val in count.items()}
 
-def encode(table: Dict[str, str], word: str) -> str:
+def get_letter_stats(words: Iterable[str]) -> Dict[str, float]:
+
+    return get_status(chain(*words))
+
+def encode(table: Dict[str, str], word: str | List[str]) -> str:
 
     return ''.join((table[_] for _ in word))
+
+def decode_one(root: Node, code: str) -> Tuple[str | None, str]:
+    """
+    Decode on element in a Huffman coded string
+    """
+    if isinstance(root._val, str):
+        return '', code
+    elif len(code) == 0:
+        return None, ''
+    else:
+        idx = '01'.find(code[0])
+        if idx == -1:
+            raise ValueError(f"Illegal code {code[0]}")
+        res, rest = decode_one(root._val[idx], code[1:])
+        if res is None:
+            return None, code
+        else:
+            return res, rest
+    
+def decode(root: Node, code: str) -> Iterable[str]:
+    """
+    Decode a Huffman coded string.
+    """
+    tcode = code
+    while True:
+        res, rest = decode_one(root, tcode)
+        if res is None:
+            yield rest
+            return
+        else:
+            yield res
+            tcode = rest
+            
+def corpus_code(corpus_name: str = 'brown', categories='news'):
+    """
+    Get a corpus and category and produce the huffman table.
+    """
+    corpus = getattr(nltk.corpus, corpus_name)
+    words = corpus.words(categories=categories)
+    stats = get_stats((_.lower() for _ in words))
+    return produce_code(stats)
+    
