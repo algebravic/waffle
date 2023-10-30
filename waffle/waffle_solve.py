@@ -109,23 +109,12 @@ class Waffle:
         self._clues = {}
         self._upper = True
         self._allow_yellow = True
-        
-    def _basic(self, nocard: bool = False):
+
+    def _basic_words(self):
+
         """
-        The basic model before clues.
+        Constraints for words from the wordlist
         """
-        # Initialize
-        self._cnf = CNF()
-        self._pool = IDPool()
-        # Each square has a letter
-        for square in self._squares:
-            choice = [self._pool.id(('s', square, _))
-                for _ in ascii_lowercase]
-            self._cnf.extend(CardEnc.equals(lits = choice,
-                                        bound = 1,
-                                        encoding = EncType.ladder,
-                                        vpool = self._pool))
-    
         # every place has a word
         for ind, place in enumerate(self._board):
             placed = []
@@ -148,6 +137,33 @@ class Waffle:
                                         bound = 1,
                                         encoding = EncType.ladder,
                                         vpool = self._pool))
+        
+    def _basic_letters(self):
+        """
+        The basic model before clues.
+        """
+        # Initialize
+        # Each square has a letter
+        for square in self._squares:
+            choice = [self._pool.id(('s', square, _))
+                for _ in ascii_lowercase]
+            self._cnf.extend(CardEnc.equals(lits = choice,
+                                        bound = 1,
+                                        encoding = EncType.ladder,
+                                        vpool = self._pool))
+
+    def _start(self):
+        self._cnf = CNF()
+        self._pool = IDPool()
+        
+    def _basic(self):
+        """
+        Clue independent constraints.
+        """
+        self._start()
+        self._basic_letters()
+        self._basic_words()
+        
     def _restrict_letters(self):
         """
         Add clause to restrict the multiset of letters.
@@ -237,7 +253,6 @@ class Waffle:
                                                         vpool = self._pool))
                     
                         
-
     @property
     def letter_counts(self) -> Counter:
         """
