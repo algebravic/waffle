@@ -128,6 +128,12 @@ def check_solution(initial: PLACEMENT,
     return [(key, val, final[key]) for key, val in current.items()
         if final[key] != current[key]]
 
+def check_compatible(initial: PLACEMENT, solution: PLACEMENT) -> bool:
+
+    _validate(initial)
+    _validate(solution)
+    return (set(initial.keys()) == set(solution.keys())
+            and Counter(initial.values()) == Counter(solution.values()))
 def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     """
     Inputs: initial and solution are dictionaries with the same key set.
@@ -144,10 +150,7 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     """
 
     # Check input
-    _validate(initial)
-    _validate(solution)
-    if not (set(initial.keys()) == set(solution.keys())
-            and Counter(initial.values()) == Counter(solution.values())):
+    if not check_compatible(initial, solution):
         # calculate disagreements
         key_diff = set(initial.keys()).symmetric_difference(solution.keys())
         if len(key_diff) > 0:
