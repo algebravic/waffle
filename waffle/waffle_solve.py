@@ -224,49 +224,42 @@ class Waffle:
                 lsquares[letter].append(square)
 
             for letter, squares in lsquares.items():
+                yellow_vars = []
+                blacks = 0
                 local_vars = []
                 for square in squares:
-                    square_var = self._pool.id(('l', idx, letter, square))
-                    local_vars.append(square_var)
-                    if square not in constraints:
-                        constraints[square] = []
-                    constraints[square].apppend(square_var)
-                self._cnf.extend([[- _] for _ in local_vars])
-                b_positive = self._pool.id(('b', idx, letter))
+                    _, color = self._clues[square]
+                    blacks += int(color == COLOR.black)
+                    self._cnf.append([- self._pool.id(('s', square, letter))])
+                    if color == COLOR.yellow:
+                        square_var = self._pool.id(('l', idx, letter, square))
+                        yellow_vars.append(square_var)
+                        if square not in constraints:
+                            constraints[square] = []
+                        constraints[square].apppend(square_var)
                 other_vars = [self._pool.id(('s', square, letter))
                               for square in other.difference(squares)]
-                              
-                self._cnf.extend([[b_positive, _] for _ in local_vars])
-                
-                self._cnf.append([- b_positive]
-                                 + [- _ for _ in local_vars])
-
-                lits = other_vars + [- _ for _ in local_vars]
-                # if b > 0 yellow is an upper bound
-                self._cnf.extend([[- b_positive] + _
-                                for _ in CardEnc.atmost(
+                if yellow_vars:
+                    lits = other_vars + [- _ for _ in yellow_vars]
+                    # if b > 0 yellow is an upper bound
+                    if blacks > 0:
+                        self._cnf.extend(CardEnc.atmost(
                                     lits = lits,
-                                    bound = len(local_vars),
+                                    bound = len(yellow_vars),
                                     vpool = self._pool,
-                                    encoding = self._encoding).clauses])
+                                    encoding = self._encoding))
                 
-                # yellow is lower bound
-                self._cnf.extend(CardEnc.atleast(
-                    lits = lits,
-                    bound = len(local_vars),
-                    vpool = self._pool,
-                    encoding = self._encoding))
+                    # yellow is lower bound
+                    self._cnf.extend(CardEnc.atleast(
+                        lits = lits,
+                        bound = len(yellow_vars),
+                        vpool = self._pool,
+                        encoding = self._encoding))
+                elif blacks > 0:
+                    # Other squares can't contain this
+                    self._cnf.extend([[- _] for _ in other_vars])
         # Now process constraints
-        for square, square_vars in constraints.items():
-            _, color = self._clues[square] # the color
-            if color == COLOR.black:
-                # All local vars are 0
-                self._cnf.extend([[- _] for _ in square_vars])
-            elif color == COLOR.yellow:
-                # At least one local var is 1
-                self._cnf.append(square_vars)
-            else:
-                raise ValueError("Only colors are yellow/black!")
+        self._cnf.extend(list(constraints.values()))
             
     def _old_process_clues(self):
         # Now process the color clues
