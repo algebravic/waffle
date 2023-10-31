@@ -348,7 +348,7 @@ class Waffle:
 
     def solve_words(self, clue_file: str,
                     use_card: bool = True,
-                    new_clues: bool = False,
+                    new_clues: bool = True,
                     upper: bool = True,
                     allow_yellow: bool = True,
                     solver_name: str = 'cd153') -> Iterable[
