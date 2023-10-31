@@ -182,13 +182,93 @@ class Waffle:
         self._cnf.extend([[-self._pool.id(('s', square, letter))]
                         for square, letter in product(self._squares, zeros)])
 
-    def _add_clues(self, nocard: bool = False):
+    def _process_clues(self):
         """
-        Process the clues.
+        Process the clues
+        1) First find all non-greens.
+        2) For each letter, and each square in that place
+           we have a variable indicating whether it's yellow (1)
+           or black (0).
+        3) For each letter and place we determine the set of non-green
+           squares *not* containing that letter.
+        4) If the set of squares containing that letter contains
+           b, blacks and y yellows
+        5) Other squares must have at least y yellows
+        6) If b > 0, other squares have at most y yellows.
+        7) For each square we record all of the local variables
+           associated to that square.
+        8) If the color of the square is black, all of the local
+           variables must be False.
+        9) If the color of the square is yellow, at least one of
+           the local variables must be True.
+        10) If the color of the square is green, the letter variable
+            for that square is True.
         """
-        if not nocard:
-            self._restrict_letters()
+        green_clues = [(square, letter) for square, (letter, color)
+                       in self._clues.items() if color == COLOR.green]
+        greens = set((_[0] for _ in green_clues))
+        # Make green letters be the answer
+        self._cnf.extend([[self._pool.id(('s', square, letter))]
+                          for square, letter in green_clues])
+        # Nail down green colors
+        all_squares = set(chain(*self._board))
+        non_greens = all_squares.difference(greens)
+        constraints = {} # a dict containing the local variables
+        for idx, place in enumerate(self._board):
+            other = set(place).intersection(non_greens)
+            lsquares = {}
+            for square in other:
+                letter, _ = self._clues[square]
+                if letter not in lsquares:
+                    lsquares[letter] = []
+                lsquares[letter].append(square)
 
+            for letter, squares in lsquares.items():
+                local_vars = []
+                for square in squares:
+                    square_var = self._pool.id(('l', idx, letter, square))
+                    local_vars.append(square_var)
+                    if square not in constraints:
+                        constraints[square] = []
+                    constraints[square].apppend(square_var)
+                self._cnf.extend([[- _] for _ in local_vars])
+                b_positive = self._pool.id(('b', idx, letter))
+                other_vars = [self._pool.id(('s', square, letter))
+                              for square in other.difference(squares)]
+                              
+                self._cnf.extend([[b_positive, _] for _ in local_vars])
+                
+                self._cnf.append([- b_positive]
+                                 + [- _ for _ in local_vars])
+
+                lits = other_vars + [- _ for _ in local_vars]
+                # if b > 0 yellow is an upper bound
+                self._cnf.extend([[- b_positive] + _
+                                for _ in CardEnc.atmost(
+                                    lits = lits,
+                                    bound = len(local_vars),
+                                    vpool = self._pool,
+                                    encoding = self._encoding).clauses])
+                
+                # yellow is lower bound
+                self._cnf.extend(CardEnc.atleast(
+                    lits = lits,
+                    bound = len(local_vars),
+                    vpool = self._pool,
+                    encoding = self._encoding))
+        # Now process constraints
+        for square, square_vars in constraints.items():
+            _, color = self._clues[square] # the color
+            if color == COLOR.black:
+                # All local vars are 0
+                self._cnf.extend([[- _] for _ in square_vars])
+            elif color == COLOR.yellow:
+                # At least one local var is 1
+                self._cnf.append(square_vars)
+            else:
+                raise ValueError("Only colors are yellow/black!")
+            
+    def _old_process_clues(self):
         # Now process the color clues
         # Green is easiest
         # I think that yellow/black can be described as follows:
@@ -274,7 +354,8 @@ class Waffle:
                      if val[1] == COLOR.green))
 
     def solve_words(self, clue_file: str,
-                    nocard: bool = False,
+                    use_card: bool = True,
+                    new_clues: bool = False,
                     upper: bool = True,
                     allow_yellow: bool = True,
                     solver_name: str = 'cd153') -> Iterable[
@@ -289,7 +370,14 @@ class Waffle:
         if self._verbose > 0:
             print_clues(self._clues)
         self._basic()
-        self._add_clues(nocard = nocard)
+        # Process the clues
+        if use_card:
+            self._restrict_letters()
+        if new_clues:
+            self._process_clues()
+        else:
+            self._old_process_clues()
+            
         solver = Solver(name = solver_name, bootstrap_with = self._cnf,
             use_timer = True)
         while True:
@@ -346,3 +434,4 @@ class Waffle:
                                                   letter_placement,
                                                   perm):
                     print(f"{lft} <--> {rgt}")
+                
