@@ -174,6 +174,7 @@ class MetropolisBoard:
                 leaf_size=30, metric='manhattan')
         else:
             self._lookup = set(self._wordlist)
+        self._distribute = distribute
         if distribute:
             self._distr = letter_status(wordlist, board)
         else: # Uniform distribution
@@ -225,12 +226,25 @@ class MetropolisBoard:
             old = self._assign[where]
             how = old
             while True:
-                how = choices(ascii_lowercase, weights = self._distr[where])[0]
+                how = choices(ascii_lowercase,
+                    weights = self._distr[where])[0]
                 if how != old:
                     break
             self._assign[where] = how
             new_score = self._score()
-            delta_score = new_score - score
+            if self._distribute: # Non reversible chain
+                # fix up the score
+                # N = # of squares
+                # pi(y) = exp(-E(y)/T) / Z
+                # K(x,y) = 1/N * Prob(new letter)
+                # Prob(new letter) = P(new)/(1-Prob(old))
+                tab = self._distr[where]
+                numer = tab[how] * (1 - tab[how])
+                denom = tab[old] * (1 - tab[old])
+                supp = log(num / denom) * temperature
+            else:
+                supp = 0.0 # Reversible
+            delta_score = new_score - score + supp
             if (delta_score <= 0
                 or delta_score <= - temperature * log(random())):
                 # Accept this move
