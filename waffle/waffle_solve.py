@@ -236,7 +236,7 @@ class Waffle:
                         yellow_vars.append(square_var)
                         if square not in constraints:
                             constraints[square] = []
-                        constraints[square].apppend(square_var)
+                        constraints[square].append(square_var)
                 other_vars = [self._pool.id(('s', square, letter))
                               for square in other.difference(squares)]
                 if yellow_vars:
