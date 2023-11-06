@@ -273,7 +273,7 @@ def stabilizer_group(part: List[List[Hashable]],
     
 def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
                     find_conjugacy: bool = False,
-                    limit: int = 1024,
+                    limit: int = 4096,
                     exhaust: bool = False,
                     verbose: int = 0,
                     restrict: bool = True,
