@@ -213,6 +213,8 @@ class MetropolisBoard:
         taken = 0
         score = self._score()
 
+        back = {val: key for key, val in enumerate(ascii_lowercase)}
+
         while True:
             tries += 1
             if trace > 0 and tries % trace == 0:
@@ -239,9 +241,11 @@ class MetropolisBoard:
                 # K(x,y) = 1/N * Prob(new letter)
                 # Prob(new letter) = P(new)/(1-Prob(old))
                 tab = self._distr[where]
-                numer = tab[how] * (1 - tab[how])
-                denom = tab[old] * (1 - tab[old])
-                supp = log(num / denom) * temperature
+                t_how = tab[back[how]]
+                t_old = tab[back[old]]
+                numer = t_how * (1.0 - t_how)
+                denom = t_old * (1.0 - t_old)
+                supp = log(numer / denom) * temperature
             else:
                 supp = 0.0 # Reversible
             delta_score = new_score - score + supp
@@ -252,7 +256,19 @@ class MetropolisBoard:
                 taken += 1
             else:
                 # reject, and put back the old state
-                self._assign[where] = old 
+                self._assign[where] = old
+
+    def word_sample(self,
+                    temperature: float,
+                    burnin: int = 1000,
+                    trace: int = 0):
+        values = self.sample(temperature,
+            burnin = burnin,
+            trace = trace)
+
+        # Convert to words
+        return [''.join((values[_] for _ in elt))
+                for elt in self._board]
 
 def cms_sample(waf: Waffle) -> Iterable[Tuple[str, 0]]:
 
