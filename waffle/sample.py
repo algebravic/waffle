@@ -66,13 +66,18 @@ def letter_status(wordlist: List[str], board: BOARD) -> Dict[SQUARE,
     squares = set(chain(*board))
     counters = [Counter((word[idx] for word in wordlist))
                 for idx in range(degree)]
-    probs = [np.array([ctr[ltr] for ltr in ascii_lowercase]) / num
-                      for ctr in counters]
-    where = ((pidx, idx, square) for pidx, place in enumerate(board) for idx, square in enumerate(place))
+    # Laplace's law of succession
+    rprobs = [1 + np.array([ctr[ltr] for ltr in ascii_lowercase])
+        for ctr in counters]
+    probs = [_ / _.sum() for _ in rprobs]
+    where = ((pidx, idx, square)
+        for pidx, place in enumerate(board)
+        for idx, square in enumerate(place))
     buckets = bucket(where, lambda _: _[2])
     out = {}
     for square in squares:
-        lprobs = np.array([probs[idx] for _, idx, _ in buckets[square]])
+        lprobs = np.array([probs[idx]
+            for _, idx, _ in buckets[square]])
         out[square] = lprobs.prod(axis=0) ** (1.0 / lprobs.shape[0])
     return out
 
@@ -159,11 +164,15 @@ def metropolis(wordlist: List[str],
             horizontal = new_horizontal
             taken += 1
 
+def entropy(probs: np.ndarray) -> float:
+    return - (np.log(probs) * probs).sum()
+
 class MetropolisBoard:
     def __init__(self, wordlist: List[str],
                  board: BOARD,
                  distribute: bool = False,
-                 hamming: bool = True):
+                 hamming: bool = True,
+                 use_entropy: bool = False):
 
         self._wordlist = wordlist.copy()
         self._board = board.copy()
@@ -175,13 +184,21 @@ class MetropolisBoard:
         else:
             self._lookup = set(self._wordlist)
         self._distribute = distribute
+        self._squares = list(sorted(set(chain(*board))))
         if distribute:
             self._distr = letter_status(wordlist, board)
         else: # Uniform distribution
             unif = np.ones(len(ascii_lowercase)) / len(ascii_lowercase)
-            squares = set(chain(*board))
-            self._distr = {square: unif for square in squares}
+            self._distr = {square: unif for square in self._squares}
         self._assign = None
+        # Choose square of highest entropy
+        if use_entropy:
+            wgts = [entropy(self._distr[square])
+                for square in self._squares]
+            self._weights = [_/ sum(wgts) for _ in wgts]
+        else:
+            self._weights = [1/len(self._squares)
+                for _ in self._squares]
 
     def _basic(self, words: List[str]) -> float:
         return sum((_ not in self._lookup for _ in words))
@@ -204,11 +221,10 @@ class MetropolisBoard:
                burnin: int = 1000,
                trace: int = 0):
 
-        squares = list(sorted(set(chain(*self._board))))
         # initial guess
         self._assign = {square: choices(ascii_lowercase,
-                                       weights = self._distr[square])[0]
-                        for square in squares}
+            weights = self._distr[square])[0]
+            for square in self._squares}
         tries = 0
         taken = 0
         score = self._score()
@@ -224,7 +240,7 @@ class MetropolisBoard:
 
             # Choose a random square and change it to a random
             # letter
-            where = choice(squares)
+            where = choices(self._squares, weights = self._weights)[0]
             old = self._assign[where]
             how = old
             while True:
@@ -243,8 +259,8 @@ class MetropolisBoard:
                 tab = self._distr[where]
                 t_how = tab[back[how]]
                 t_old = tab[back[old]]
-                numer = t_how * (1.0 - t_how)
-                denom = t_old * (1.0 - t_old)
+                numer = t_old * (1.0 - t_old)
+                denom = t_how * (1.0 - t_how)
                 supp = log(numer / denom) * temperature
             else:
                 supp = 0.0 # Reversible
