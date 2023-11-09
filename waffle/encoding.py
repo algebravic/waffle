@@ -54,33 +54,46 @@ def produce_table(stats: Dict[str, float]) -> Dict[str, CODE]:
     # Now table[0] is the root of the tree
     return table[0]
 
-def produce_code(stats: Dict[str, float]) -> Dict[str, CODE]:
-    """
-    """
-    return dict(produce_bits(produce_table(stats)))
-
 def get_stats(words: Iterable[str]) -> Dict[str, float]:
     """
-    
+    Get word probabilities
+    Input: words
+    Output: A dictionary keyed by the words with values
+       relative frequency.
+    We add the 'terminal' word xxxx, to indicate end of message.
     """
-    count = Counter(words)
+    count = Counter(chain(words, ['xxxx']))
     denom = sum(count.values())
     return {key: val / denom for key, val in count.items()}
 
 def get_letter_stats(words: Iterable[str]) -> Dict[str, float]:
 
-    return get_status(chain(*words))
+    return get_stats(chain(*words))
 
 def encode(table: Dict[str, str], word: str | List[str]) -> str:
+    """
+    Input:
+      table: a Huffman code table.
+      word: either a string or List of strings
+    Ouput:
+      The Huffman code for the input as a 0/1 string.
+    """
 
     return ''.join((table[_] for _ in word))
 
 def decode_one(root: Node, code: str) -> Tuple[str | None, str]:
     """
     Decode on element in a Huffman coded string
+    Input:
+      root: a Huffman code tree
+    Output:
+      An iterable of the decoded constituents
+      followed by the reamining undecoded string
+      because it was an incomplete code word.
+      If empty it indicates complete decoding.
     """
     if isinstance(root._val, str):
-        return '', code
+        return root._val, code
     elif len(code) == 0:
         return None, ''
     else:
@@ -107,12 +120,12 @@ def decode(root: Node, code: str) -> Iterable[str]:
             yield res
             tcode = rest
             
-def corpus_code(corpus_name: str = 'brown', categories='news'):
+def corpus_code(corpus_name: str = 'brown', categories='news') -> Tuple[Dict[str, CODE], Node]:
     """
     Get a corpus and category and produce the huffman table.
     """
     corpus = getattr(nltk.corpus, corpus_name)
     words = corpus.words(categories=categories)
     stats = get_stats((_.lower() for _ in words))
-    return produce_code(stats)
-    
+    tree = produce_table(stats)
+    return dict(produce_bits(tree)), tree
