@@ -71,7 +71,7 @@ def boards(sizes: int | Tuple[int, int]) -> BOARD:
     Generate boards for waffle/deluxe and/or royale.
     """
     if isinstance(sizes, int):
-        # Oridnary Waffle
+        # Ordinary Waffle
         return waffle_board(sizes)
     elif (isinstance(sizes, tuple)
           and len(sizes) == 2
