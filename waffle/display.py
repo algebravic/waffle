@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 from itertools import chain
 import numpy as np
-from .reconstruct import square_to_board
+from .reconstruct import square_to_board, assign_colors
 from .clue import COLOR, CLUES, BOARD, get_clues
+from .waffle_solve import PLACEMENT
 
 def render_clues(clues: CLUES,
                  size: float = 120.0,
@@ -73,4 +74,12 @@ def render_clues(clues: CLUES,
 
 def write_clues(name: str, board: BOARD):
     fig, ax = render_clues(get_clues(name, board))
+    plt.savefig(f'waffle_{name}.png')
+
+def display_state(name: str,
+                  current: PLACEMENT,
+                  solution: PLACEMENT):
+
+    the_clues = assign_colors(current, solution)
+    fig, ax = render_clues(the_clues)
     plt.savefig(f'waffle_{name}.png')
