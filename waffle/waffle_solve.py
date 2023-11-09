@@ -55,6 +55,9 @@ def restrict(dct: Dict, restriction: Set) -> Dict:
     return {key: val for key, val in dct.items()
             if key in restriction}
 
+def getvars(cnf: CNF) -> Set[int]:
+    return set(chain(*(map(abs,_) for _ in cnf)))
+
 def royale() -> BOARD:
     """
     Waffle Royale board
@@ -360,7 +363,7 @@ class Waffle:
         self._upper = upper
         self._allow_yellow = allow_yellow
         # print out clues
-        if self._verbose > 0:
+        if self._verbose > 1:
             print_clues(self._clues)
         self._basic()
         # Process the clues
@@ -376,6 +379,8 @@ class Waffle:
         while True:
             status = solver.solve()
             if self._verbose > 0:
+                print(f"{len(self._cnf.clauses)} clauses,",
+                      f"{len(getvars(self._cnf))} variables")
                 print(f"time = {solver.time()}")
                 print(f"Statistics: {solver.accum_stats()}")
             if status:
