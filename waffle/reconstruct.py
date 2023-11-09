@@ -41,7 +41,7 @@ def square_to_board(squares: Set[SQUARE]) -> BOARD:
         for _ in sorted(list(by_col)))
     yield from (_ for _ in chain(rows, cols) if connected(_))
 
-def yellow_black(current: PLACEMENT, solution: PLACEMENT) -> Iterable[Tuple[Set[SQUARE], int]]:
+def yellow_black(current: PLACEMENT, solution: PLACEMENT) -> Iterable[Tuple[int, Set[SQUARE], int]]:
     """
     Determine black/yellow color for the non-green squares.
     """
@@ -53,7 +53,7 @@ def yellow_black(current: PLACEMENT, solution: PLACEMENT) -> Iterable[Tuple[Set[
     non_greens = set(current.keys()).difference(greens)
 
     constraints = []
-    for place in board:
+    for idx, place in enumerate(board):
         # Find all letters in current
         consider = non_greens.intersection(place)
         cletters = set(current[square] for square in consider)
@@ -63,12 +63,13 @@ def yellow_black(current: PLACEMENT, solution: PLACEMENT) -> Iterable[Tuple[Set[
             other = consider.difference(occurs)
             count = len([square for square in other
                 if solution[square] == letter])
-            yield (occurs, count)
+            if count > 0:
+                yield (idx, occurs, count)
 
 def assign_colors(current: PLACEMENT,
                   solution: PLACEMENT,
                   solver_name: str = 'cd153',
-                  verbose: int = 0) -> Tuple[SQUARES, SQUARES, SQUARES]:
+                  verbose: int = 0) -> CLUES:
     """
     Calculate the list of squares that should be colored yellow/black.
     """
@@ -76,20 +77,21 @@ def assign_colors(current: PLACEMENT,
     greens = set((square for square in current.keys()
               if current[square] == solution[square]))
     non_greens = set(current.keys()).difference(greens)
-    constraints = [(tuple(occurs), count)
-        for occurs, count in yellow_black(current, solution)]
+    constraints = list(yellow_black(current, solution))
     # Now process the constraints via a SAT solver
     if verbose > 0:
         print(f"There are {len(constraints)} to be assigned.")
     if constraints:
+        placement = {}
         pool = IDPool()
         cnf = CNF()
-        for squares, count in constraints:
-            lits = [pool.id(('s', _)) for _ in squares]
-            if count == 0:
-                pass
-                # cnf.extend([[-_] for _ in lits])
-            elif count >= len(squares):
+        for idx, squares, count in constraints:
+            lits = [pool.id(('s', idx, _)) for _ in squares]
+            for square in squares:
+                if square not in placement:
+                    placement[square] = []
+                placement[square].append(pool.id(('s', idx, square)))
+            if count >= len(squares):
                 cnf.extend([[_] for _ in lits])
             else:
                 cnf.extend(CardEnc.equals(lits = lits,
@@ -102,12 +104,19 @@ def assign_colors(current: PLACEMENT,
             raise ValueError("Yellow/black not realizable!")
         model = solver.get_model()
         pos = [pool.obj(_) for _ in model if _ > 0]
-        yellows.update([_[1] for _ in pos if _ is not None])
-    blacks = non_greens.difference(yellows)
-    return (list(sorted(greens)),
-            list(sorted(blacks)),
-            list(sorted(yellows)))
-
-def render_state(solution: Dict[SQUARE, str],
-                 state: Dict[SQUARE, str]):
-    pass
+        neg = [pool.obj(- _) for _ in model if _ < 0]
+        yellows = set([_[2] for _ in pos if _ is not None])
+        blacks = set([_[2] for _ in neg if _ is not None])
+    else:
+        yellows = set()
+        blacks = non_greens
+    other = non_greens.difference(yellows)
+    blacks.update(other)
+    the_clues = {}
+    assignments = [(greens, COLOR.green),
+        (blacks, COLOR.black),
+        (yellows, COLOR.yellow)]
+    for squares, color in assignments:
+        the_clues.update({square: (current[square], color)
+                          for square in squares})
+    return the_clues
