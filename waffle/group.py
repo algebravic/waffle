@@ -4,7 +4,7 @@ Calculations of group structure.
 from typing import Tuple, Iterable, List, Set, Dict, Hashable
 from itertools import product, chain, tee
 from collections import Counter
-from sympy.combinatorics.permutations import Permutation 
+from sympy.combinatorics.permutations import Permutation
 from sympy.combinatorics.perm_groups import PermutationGroup
 from sympy.functions.combinatorial.numbers import stirling
 from .clue import SQUARE
