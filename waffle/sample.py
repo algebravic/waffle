@@ -2,7 +2,7 @@
 Construct a random Waffle Game
 """
 from typing import List, Tuple, Dict, Set, Iterable
-from random import choice, choices, randint, random
+from random import choice, choices, randint, random, Random
 from math import exp, log
 from string import ascii_lowercase
 from itertools import chain
@@ -41,15 +41,6 @@ def print_board(board: BOARD, answer: Dict[SQUARE, str]) -> Iterable[str]:
     for rowcol in board:
         yield ''.join((answer[_] for _ in rowcol))
 
-def _word_buckets(wordlist: List[str]) -> Dict[Tuple[str, ...], str]:
-
-    degree = len(wordlist[0])
-
-    buckets = bucket(wordlist,
-                     lambda _: (_[idx] for idx in range(0, degree, 2)))
-
-    # buckets has value of an iterable, make it a list
-    return {key: list(buckets[key]) for key in buckets}
 
 def letter_status(wordlist: List[str], board: BOARD) -> Dict[SQUARE,
                                                              np.ndarray]:
@@ -81,89 +72,6 @@ def letter_status(wordlist: List[str], board: BOARD) -> Dict[SQUARE,
         out[square] = lprobs.prod(axis=0) ** (1.0 / lprobs.shape[0])
     return out
 
-def waffle_sample(wordlist: List[str]) -> List[str]:
-    """
-    Use rejection sampling and conditional probability
-    to uniformly sample all valid word placements
-    """
-
-    # Now rejection sampling
-    # Unfortunately random.choices uses replacement
-    # we reject duplicates
-
-    # Find horizontal
-    degree = len(wordlist[0])
-    rows = (degree + 1) // 2
-    state = _word_buckets(wordlist)
-    # Now choose columns
-    tries = 0
-    while True:
-        tries += 1
-        while True:
-            horizontal = choices(wordlist, k=rows)
-            if len(set(horizontal)) == rows:
-                break
-        keys = [tuple((word[idx] for idx in range(0, degree, 2)))
-                for word in horizontal]
-        if all((_ in state for _ in keys)):
-            vertical = [state[_] for _ in keys]
-            # We have a winner!
-            print(f"Succeeded in {tries} tries.")
-            return horizontal + [choice(_) for _ in vertical]
-
-def _scoreit(state: Dict[Tuple[str, ...], str],
-             horizontal: List[int]) -> float:
-    
-    degree = 2 * len(horizontal) - 1
-    keys = [tuple((word[_] for _ in range(0, degree, 2)))
-        for word in horizontal]
-    addend = len(horizontal) - len(set(horizontal))
-    return sum((_ not in state for _ in keys)) + addend
-
-def metropolis(wordlist: List[str],
-               temperature: float,
-               distribute: bool = False,
-               trace: int = 0,
-               burnin: int = 1000) -> List[str]:
-    """
-    Use the Metropolis algorithm to sample.
-    """
-    degree = len(wordlist[0])
-    print(f"degree = {degree}")
-    rows = (degree + 1) // 2
-    state = _word_buckets(wordlist)
-    # Initial population
-    horizontal = choices(wordlist, k=rows)
-    addend = len(horizontal) - len(set(horizontal))
-    keys = [tuple((word[_] for _ in range(0, degree, 2)))
-        for word in horizontal]
-    score = sum((_ not in state for _ in keys)) + addend
-
-    tries = 0
-    taken = 0
-    while True:
-        tries += 1
-        if trace > 0 and tries % trace == 0:
-            print(f"Step {tries}, taken = {taken}, score = {score}")
-        if tries > burnin and score == 0:
-            vertical = [choice(state[_]) for _ in keys]
-            print(f"Final tries = {tries}")
-            return vertical + horizontal
-        # modify horizontal
-        new_horizontal = horizontal.copy()
-        new_horizontal[randint(0, rows - 1)] = choice(wordlist)
-        new_keys = [tuple((word[_] for _ in range(0, degree, 2)))
-            for word in new_horizontal]
-        new_addend = len(new_horizontal) - len(set(new_horizontal))
-        new_score = sum((_ not in state for _ in new_keys)) + new_addend
-        delta_score = new_score - score
-        if (delta_score <= 0
-            or exp(-delta_score/temperature) >= random()):
-            # Accept this move
-            score = new_score
-            horizontal = new_horizontal
-            taken += 1
-
 def entropy(probs: np.ndarray) -> float:
     return - (np.log(probs) * probs).sum()
 
@@ -172,8 +80,11 @@ class MetropolisBoard:
                  board: BOARD,
                  distribute: bool = False,
                  hamming: bool = True,
-                 use_entropy: bool = False):
+                 use_entropy: bool = False,
+                 seed: int | None = None):
 
+        self._random = random.Random()
+        self._random.seed(seed)
         self._wordlist = wordlist.copy()
         self._board = board.copy()
         self._subscore = self._hamming if hamming else self._basic
@@ -222,7 +133,8 @@ class MetropolisBoard:
                trace: int = 0):
 
         # initial guess
-        self._assign = {square: choices(ascii_lowercase,
+        self._assign = {square: self._random.choices(
+            ascii_lowercase,
             weights = self._distr[square])[0]
             for square in self._squares}
         tries = 0
@@ -240,11 +152,11 @@ class MetropolisBoard:
 
             # Choose a random square and change it to a random
             # letter
-            where = choices(self._squares, weights = self._weights)[0]
+            where = self._random.choices(self._squares, weights = self._weights)[0]
             old = self._assign[where]
             how = old
             while True:
-                how = choices(ascii_lowercase,
+                how = self._random.choices(ascii_lowercase,
                     weights = self._distr[where])[0]
                 if how != old:
                     break
@@ -286,10 +198,10 @@ class MetropolisBoard:
         return [''.join((values[_] for _ in elt))
                 for elt in self._board]
 
-def cms_sample(waf: Waffle) -> Iterable[Tuple[str, 0]]:
+def cms_sample(waf: Waffle, seed: int | None = None) -> Iterable[Tuple[str, 0]]:
 
     board = waf._board
-    solver = pycmsgen.Solver()
+    solver = pycmsgen.Solver(seed = seed)
     waf._basic()
     solver.add_clauses(waf._cnf.clauses)
     while True:
