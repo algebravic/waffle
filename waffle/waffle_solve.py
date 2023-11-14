@@ -10,11 +10,11 @@ from collections import Counter
 from pysat.formula import CNF, IDPool
 from pysat.solvers import Solver
 from pysat.card import CardEnc, EncType
-from .clue import CLUES, COLOR, BOARD, SQUARE, get_clues, print_clues, waffle_board
+from .clue import CLUES, COLOR, BOARD, SQUARE, PLACEMENT
+from .clue import  get_clues, print_clues, waffle_board
 from .get_words import get_words
 from .group import minimal_element, to_transpositions, check_solution
 
-PLACEMENT = Dict[SQUARE, str]
 CONTENTS = Tuple[SQUARE, str]
 
 def detailed_solution(initial: PLACEMENT,

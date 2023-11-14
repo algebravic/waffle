@@ -9,8 +9,7 @@ from matplotlib.patches import FancyBboxPatch
 from itertools import chain
 import numpy as np
 from .reconstruct import square_to_board, assign_colors
-from .clue import COLOR, CLUES, BOARD, get_clues
-from .waffle_solve import PLACEMENT
+from .clue import COLOR, CLUES, BOARD, PLACEMENT, get_clues
 
 def render_clues(clues: CLUES,
                  size: float = 120.0,

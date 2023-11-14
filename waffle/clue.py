@@ -7,10 +7,10 @@ The next 5 non blank lines are the colors
 from typing import Dict, Tuple, Iterable, List
 from enum import Enum
 from itertools import chain, product
-from .waffle_solve import PLACEMENT
 
 COLOR = Enum('Color', ['green', 'yellow', 'black'])
 SQUARE = Tuple[int, int]
+PLACEMENT = Dict[SQUARE, str]
 CLUES = Dict[SQUARE, Tuple[str, COLOR]]
 ROWCOL = List[SQUARE]
 BOARD = List[ROWCOL]

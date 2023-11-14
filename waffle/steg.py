@@ -4,7 +4,8 @@ Embed a message in a waffle board.
 from typing import Tuple, List, Dict
 from itertools import chain
 from sympy.combinatorics.permutations import Permutation
-from .waffle_solve import Waffle, PLACEMENT
+from .waffle_solve import Waffle
+from .clue import PLACEMENT
 from .sample import MetropolisBoard
 from .reconstruct import assign_colors
 

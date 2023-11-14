@@ -7,8 +7,8 @@ from more_itertools import bucket
 from pysat.solvers import Solver
 from pysat.card import EncType, CardEnc
 from pysat.formula import IDPool, CNF
-from .clue import COLOR, SQUARE, CLUES, BOARD
-from .group import PLACEMENT, check_compatible
+from .clue import COLOR, SQUARE, CLUES, BOARD, PLACEMENT
+from .group import check_compatible
 
 SQUARES = List[SQUARE]
 

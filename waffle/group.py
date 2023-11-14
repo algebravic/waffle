@@ -7,9 +7,8 @@ from collections import Counter
 from sympy.combinatorics.permutations import Permutation
 from sympy.combinatorics.perm_groups import PermutationGroup
 from sympy.functions.combinatorial.numbers import stirling
-from .clue import SQUARE
+from .clue import SQUARE, PLACEMENT
 
-PLACEMENT = Dict[SQUARE, str]
 REVERSE = Dict[str, List[SQUARE]]
 SQUARE_PERM = List[List[SQUARE]]
 
