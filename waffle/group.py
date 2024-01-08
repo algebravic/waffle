@@ -50,6 +50,22 @@ def _reverse(placement: PLACEMENT) -> REVERSE:
         out[val].add(key)
     return out
 
+def check_compatible(initial: PLACEMENT, solution: PLACEMENT) -> bool:
+
+    _validate(initial)
+    _validate(solution)
+    return (set(initial.keys()) == set(solution.keys())
+            and Counter(initial.values()) == Counter(solution.values()))
+def _restrict(initx: PLACEMENT, final: PLACEMENT) -> Tuple[PLACEMENT, PLACEMENT]:
+    """
+      Remove keys in both where they agree
+    """
+    if not check_compatible(initx, final):
+        raise ValueError("initial and final keys are incompatible!")
+    disagree = [key for key in initx if initx[key] != final[key]]
+    return ({key: initx[key] for key in disagree},
+            {key: final[key] for key in disagree})
+
 def _validate_cycle(permutation: List[List[Hashable]]):
     """
     Validate cyclic form
@@ -106,8 +122,8 @@ def to_transpositions(permutation: List[List[Hashable]]) -> List[
         zip(cycle[: - 1], cycle[1: ])
         for cycle in permutation)))))
 
-def check_solution(initial: PLACEMENT,
-                   final: PLACEMENT,
+def check_solution(initx: PLACEMENT,
+                   finx: PLACEMENT,
                    perm: List[Tuple[SQUARE, SQUARE]]) -> List[
                        Tuple[SQUARE, str, str]]:
     """
@@ -118,22 +134,29 @@ def check_solution(initial: PLACEMENT,
       Check whether the permutation applied to initial
       is equal to final.
     """
-    current = initial.copy()
+    current, final = _restrict(initx, finx)
+    count = 0
     for elt1, elt2 in perm:
+        count += 1
         val1, val2 = current[elt1], current[elt2]
         if val1 == final[elt1] or val2 == final[elt2]:
-            print(f"Swapping green {elt1} <--> {elt2}")
+            print(f"Swapping green {elt1} <--> {elt2} at step {count}")
         current[elt1], current[elt2] = val2, val1
     return [(key, val, final[key]) for key, val in current.items()
         if final[key] != current[key]]
 
-def check_compatible(initial: PLACEMENT, solution: PLACEMENT) -> bool:
+def _disagreement(initial: PLACEMENT, final: PLACEMENT):
+    key_diff = set(initial.keys()).symmetric_difference(solution.keys())
+    if len(key_diff) > 0:
+        print(f"key disagreement: {key_diff}")
+    key_common = set(initial.keys()).intersection(solution.keys())
+    val_common = [(key, initial[key], solution[key]) for key in key_common]
+    val_diff = [_ for _ in val_common if _[1] != _[2]]
+    if len(val_diff) > 0:
+        print(f"value disagreement: {val_diff}")
+    raise ValueError("initial and placement not permutable")
 
-    _validate(initial)
-    _validate(solution)
-    return (set(initial.keys()) == set(solution.keys())
-            and Counter(initial.values()) == Counter(solution.values()))
-def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
+def initial_permutation(initx: PLACEMENT, soln: PLACEMENT) -> Permutation:
     """
     Inputs: initial and solution are dictionaries with the same key set.
     and value multiset.  Output a permutation of the key set,
@@ -147,19 +170,11 @@ def initial_permutation(initial: PLACEMENT, solution: PLACEMENT) -> Permutation:
     letter value to the corresponding elements of a sorted
     list of squares in the solution.
     """
-
+    initial, solution = _restrict(initx, soln)
     # Check input
     if not check_compatible(initial, solution):
-        # calculate disagreements
-        key_diff = set(initial.keys()).symmetric_difference(solution.keys())
-        if len(key_diff) > 0:
-            print(f"key disagreement: {key_diff}")
-        key_common = set(initial.keys()).intersection(solution.keys())
-        val_common = [(key, initial[key], solution[key]) for key in key_common]
-        val_diff = [_ for _ in val_common if _[1] != _[2]]
-        if len(val_diff) > 0:
-            print(f"value disagreement: {val_diff}")
-        raise ValueError("initial and placement not permutable")
+        _disagreement(initial, solution)
+
     outperm = {}
     rinit = _reverse(initial)
     rsoln = _reverse(solution)
@@ -280,10 +295,7 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
 
     # First create the mapping to a from indices
     if restrict:
-        disagree = set((square for square, letter in initx.items()
-            if letter != soln[square]))
-        initial = {key: initx[key] for key in disagree}
-        solution = {key: soln[key] for key in disagree}
+        initial, solution = _restrict(initx, soln)
     else:
         initial = initx.copy()
         solution = soln.copy()
