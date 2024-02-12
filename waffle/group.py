@@ -56,12 +56,24 @@ def check_compatible(initial: PLACEMENT, solution: PLACEMENT) -> bool:
     _validate(solution)
     return (set(initial.keys()) == set(solution.keys())
             and Counter(initial.values()) == Counter(solution.values()))
+
+def _disagreement(initial: PLACEMENT, final: PLACEMENT):
+    key_diff = set(initial.keys()).symmetric_difference(solution.keys())
+    if len(key_diff) > 0:
+        print(f"key disagreement: {key_diff}")
+    key_common = set(initial.keys()).intersection(solution.keys())
+    val_common = [(key, initial[key], solution[key]) for key in key_common]
+    val_diff = [_ for _ in val_common if _[1] != _[2]]
+    if len(val_diff) > 0:
+        print(f"value disagreement: {val_diff}")
+    raise ValueError("initial and placement not permutable")
+
 def _restrict(initx: PLACEMENT, final: PLACEMENT) -> Tuple[PLACEMENT, PLACEMENT]:
     """
       Remove keys in both where they agree
     """
     if not check_compatible(initx, final):
-        raise ValueError("initial and final keys are incompatible!")
+        _disagreement(initx, final)
     disagree = [key for key in initx if initx[key] != final[key]]
     return ({key: initx[key] for key in disagree},
             {key: final[key] for key in disagree})
@@ -122,8 +134,8 @@ def to_transpositions(permutation: List[List[Hashable]]) -> List[
         zip(cycle[: - 1], cycle[1: ])
         for cycle in permutation)))))
 
-def check_solution(initx: PLACEMENT,
-                   finx: PLACEMENT,
+def check_solution(initial: PLACEMENT,
+                   final: PLACEMENT,
                    perm: List[Tuple[SQUARE, SQUARE]]) -> List[
                        Tuple[SQUARE, str, str]]:
     """
@@ -134,7 +146,7 @@ def check_solution(initx: PLACEMENT,
       Check whether the permutation applied to initial
       is equal to final.
     """
-    current, final = _restrict(initx, finx)
+    current = initial.copy()
     count = 0
     for elt1, elt2 in perm:
         count += 1
@@ -144,17 +156,6 @@ def check_solution(initx: PLACEMENT,
         current[elt1], current[elt2] = val2, val1
     return [(key, val, final[key]) for key, val in current.items()
         if final[key] != current[key]]
-
-def _disagreement(initial: PLACEMENT, final: PLACEMENT):
-    key_diff = set(initial.keys()).symmetric_difference(solution.keys())
-    if len(key_diff) > 0:
-        print(f"key disagreement: {key_diff}")
-    key_common = set(initial.keys()).intersection(solution.keys())
-    val_common = [(key, initial[key], solution[key]) for key in key_common]
-    val_diff = [_ for _ in val_common if _[1] != _[2]]
-    if len(val_diff) > 0:
-        print(f"value disagreement: {val_diff}")
-    raise ValueError("initial and placement not permutable")
 
 def initial_permutation(initx: PLACEMENT, soln: PLACEMENT) -> Permutation:
     """
@@ -171,11 +172,7 @@ def initial_permutation(initx: PLACEMENT, soln: PLACEMENT) -> Permutation:
     list of squares in the solution.
     """
     initial, solution = _restrict(initx, soln)
-    # Check input
-    if not check_compatible(initial, solution):
-        _disagreement(initial, solution)
-
-    outperm = {}
+    print(f"disagreements = {list(sorted(initial.keys()))}")
     rinit = _reverse(initial)
     rsoln = _reverse(solution)
     return dict(chain(*(zip(sorted(rinit[key]),
@@ -307,6 +304,8 @@ def minimal_element(initx: PLACEMENT, soln: PLACEMENT,
 
     iperm = initial_permutation(initial, solution)
     iperm_trans = to_transpositions(to_cycle(iperm))
+    if verbose > 0:
+        print(f"initial permutation = {iperm_trans}")
     check = check_solution(initial, solution, iperm_trans)
     if len(check) > 0:
         print(f"Initial permutation fail: {check}")
