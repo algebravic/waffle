@@ -1,0 +1,101 @@
+#+Title: Organization of the Waffle talk
+
+* First section
+** Games
+Give a few slides about history of relevant games
+*** Jotto
+*** Mastermind: give a picture of the mastermind board on the left side
+   On the right give rules, then Knuth and Chvatal excerpts
+*** Sudoku: On left give a typical puzzle.  On the right, the rules.
+*** Wordle:
++ Give a picture of a wordle puzzle on the left
++ On the right give the rules: green/yellow/white
+*** Waffle:
++ On the left give a typical puzzle.
++ On the right say 6 words  are chosen and squares are mixed up with 10 swaps.
++ Colors  are like Wordle, with exception of yellow in intersecting squares.
++ Deluxe version: 8 words in a 7 by 7 grid and 20 swaps.
+*** Question: How much information is in initial grid?
+*** Answer, almost   always enough to solve the puzzle.
+*** SAT solving to find the unknown words.  
+*** Group theory to find   the unknown permutation.
+*** Results: Puzzle is solved in a fraction of a second.
+*** Details: Constraints:
++ Every *place* (row/column) has exactly one word from the word list.
++ Every square has exactly one letter.
++ Each word is used at most once.
++ If a word is in a place, each of its letters are in the
+  corresponding squares.
++ The counts of how many occurences of each letter (including zero)
+  in the solution are the same as in the initial clues.
+*** Permutations
+**** Generalities
++ Cycle notation.
++ Key result: A permutation can be written with a minimum of $t$ swaps
+  if and only if it has $n-t$ cycles.
+**** Solving
++ Once we have the words placed, it's straightforward to find *some*
+  permutation that puts all the squares in order.
++ All other such permutations are obtained by multiplying that
+  permutation by the elements of a group of permutations that only
+  rearrange the same letter.
++ Problem: *Minimum Distance Problem* for a subgroup.  Like the close
+  vector problem for lattices (actually a generalization).
++ For original waffle puzzle, the subgroup is small enough to exhaust over.
++ For deluxe waffle it is too big for this.
++ Discrete Hill Climbing.
+** Miscellany
++ Don't know the list of words used.
++ At first used the same as for Wordle: 2309 words.
++ Worked most of the time, but occasional failure.
++ Found much bigger list (Scrabble words):  25823 words.
++ Sometimes gave multiple solutions with very unusual words.
+* Generating a puzzle
+** Goal: Generate word placements uniformly over all possible, and pattern of swaps uniformly.
+*** Acceptance Sampling
++ Idea: Sample a set containing the desired set so that the conditional
+  probability of desired elements is uniform.
++ Test if element has desired property. If so, accept, otherwise reject.
++ Problem: The probabilty of generating a desired element can't be too small.
++ How: *Metropolis-Hastings Algorithm* - a version of Markov Chain Monte Carlo.
++ Use idea from physics: each configuration has a nonnegative *energy*, with the
+  desired configurations all having energy 0, and undesired ones positive.
++ Construct a Markov Chain whose stationary distribution has
+  probability $\exp(-E(t)/T) / Z$ for configuration $t$ and a
+  "temperature" $T$, where $Z = \sum_t \exp(-E(t)/T)$.
++ We don't need to know $Z$ in order to run the Markov Chain.
+*** Apply to Waffle grid
++ State: placement of letters on the grid.
++ First attempt: $E(t) = $ number of nonwords.
++ Transitions choose a random square and then replace its contents
+  with a random letter.
++ Experiment with a temperature setting.
++ Better energy: sum of Hamming distances from a word.
++ Implemented: one-hot encoding and $k-d$ trees.
++ Transitions: estimate letter probabilities in each position.
+*** Choosing a permutation
++ Want to uniformly sample permutations of size $n$ with exactly $n-t$
+  cycles.
++ Then turn it into a sequence of transpositions (swaps).
++ Many ways of doing this.
++ First studied by Adolf Hurwitz (give photo).
++ *Ewens distribution*: $\Pr(X_\theta = \pi) \sim \theta^{k(\pi)}$ where $k(\pi)$
+  is number of cycles.
++ Find $\theta$ so that $E(X_\theta) = n-t$.
++ *Feller Reprentation*: gives shape for $X_\theta$ and number of cycles.
++ Fill in random permutation.
+**** Counts and ranking/unranking
++ *Stirling Numbers of the First Kind*: gives how many permutations.
++ $s(n,k) = s(n-1,k-1) + (n-1) s(n-1,k)$.
++ Can turn this into recursive routines:
++ Each such permutation has an index.  Go back and forth.
++ Generated random integer in $[0, s(21,11)], and turn it into a permutation.
+*** Steganography
++ "The practice of concealing information within another message or
+  physical object to avoid  detection".
++ $s(21, 11) = 1307535010540395 \approx 2^{50}$.
++ Example: Use Huffman code for words, to encode a message.
++ Use that bit string to choose a permutation.
++ For regular Waffle, usually never more than 2 different permutations.
+
+

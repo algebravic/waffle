@@ -1,0 +1,397 @@
+#+Title: A question for Math Overflow
+#+Latex_header: \DeclareMathOperator{\cycles}{cycles}
+#+Latex_header: \DeclareMathOperator{\rank}{rank}
+#+Latex_header: \DeclareMathOperator{\Ind}{Ind}
+#+Latex_header: \DeclareMathOperator{\Res}{Res}
+#+Latex_header: \DeclareRobustCommand{\stirling2}{\genfrac\{\}{0pt}{}}
+#+Latex_header: \DeclareRobustCommand{\stirling1}{\genfrac[]{0pt}{}}
+
+* Permutation group profile
+Let $G < S_n$ be a permutation group of degree $n$, $\mathcal{P(n)}$
+denote the set of all partitions of $n$, and $c: G \rightarrow
+\mathcal{P}(n)$, where $c(g)$ is the partition given by the multiset of
+cycle lengths of $g$.  Define the *profile* (is there a standard term
+for this?) of $G$ to be the map $P: \mathcal{P}(n) \rightarrow
+\mathbb{N}$ where $P(\pi) = \#\{g \in G: c(g) = \pi\}$ is the number of
+elements of $G$ whose multiset of cycles lengths is $\pi$.
+
+Question: Are there a pair of non-conjugate subgroups $G, H < S_n$
+with the same profile?
+
+In these questions I'm assuming that subgroup $G < S_n$ is
+specified by giving a list of generators.  When I ask for a "good"
+algorithm I mean one that is subexhaustive.  Ideally it should run in
+time polynomial in $n$.  For example, a lot of group theoretic
+calculations have good algorithms using the Schreier-Sims algorithm
+(and variants).
+
+Question: Given a subgroup $G < S_n$ is there a good algorithm to
+compute $P(\pi)$ for a given partition $\pi$?  It's easy to do this
+"by hand" for $S_n$ and $A_n$.
+
+Question: We are given a subgroup $G < S_n$, and $h \in S_n, h \not
+\in G$.  For every partition $\pi \in \mathcal{P}(n)$, is there a good
+algorithm which either determines that there is no $g \in h G$ with
+$c(g) = \pi$, or if there is such a $g$, constructs one?
+
+* Analysis
+
+If $hg$ and $hg'$ have the same cycle structure, this happens, if and
+only if there is a $\tau$ such that $h^\tau g^\tau = h g'$.
+Expanding:
+$\tau^{-1} h g \tau = h g'$  This is if and only if
+$h^{-1} \tau^{-1} h \tau = \tau^{-1} g \tau g'$, or
+$[h, \tau] = g^\tau g'$.  If $G$ is a normal subgroup, the right hand
+side is contained in $G$.
+
+* Character formulas
+
+If $G$ is a finite group, $A, B, C$ conjugacy classes,$F$ a class
+function, and $b \in G$, then we have
+
+\begin{displaymath}
+\frac{1}{|C|} \sum_{c \in C} F(bc)  = \sum_{\chi \in \widehat{G}} \frac{\chi(b) \chi(C)}{\chi(1)} \left( \frac{1}{|G|} \sum_A |A| \chi(A) F(A^{-1}).
+\end{displaymath}
+where $\widehat{G}$ is the set of irreducible characters of $G$.
+
+To apply this to our problem, let $f(g)$ be the number of cycles in
+$g$.
+
+* Motivation
+
+Added:
+The motivation for this problem is the following: I was given pairs
+$(h, G)$, where $h \in S_n$, and $G < S_n$ is a subgroup.  I wanted to
+find a $g \in G$ so that ${\tt cycles}(gh)$ was maxmal among all
+choices of $g \in G$, where ${\tt cycles}(g)$ means the number of
+cycles in in $g$ (including trivial ones).  I had thought of
+exhausting over all partitions for this.  In some of the examples, the
+order of $G$ was small enought to exhaust over, but in others it was
+huge.
+
+* Random generation
+In the *waffle inference problem* we're given a subgroup $G < S_n$,
+and $h \in S_n, h \not \in G$.  We want to find $g \in G$ such that
+$\cycles(hg) = \min_{u \in G} \cycles(hu)$.
+
+Lemma: Let $g \in S_n$, $i \ne j \in [n]$.  Then $\cycles((i,j) g) =
+\cycles(g) + \varepsilon$, where $\epsilon = 1$ if $i,j$ are in
+same cycle in $g$, and $\varepsilon = -1$ if $i,j$ are in the same
+cycle.
+
+Corollary: Let $g \in S_n$.  Let $m$ be the minimum number of
+transpositions $\tau_1, \dots, \tau_m$ such that $g = \tau_1 \cdots
+\tau_m$.  Then $m = n - \cycles(g)$.
+
+Lemma: Let $n$ be a positive integer, and $1 \le k \le n$ be an
+integer.  The number of elements  $g \in S_n$ with $\cycles(g) = k$ is
+$\stirling1{n}{k}$.
+
+Analyze the following algorithm to create a set partition of $[n]$
+into exactly $k$ parts where each partition created has the probabilty
+$1/\stirling1{n}{k}$, i.e this is a uniform sample.
+
+$P$ will be a set partition of $[n]$.
+
+1) Initialize: $P$ will be the partition $\{\{1\}, \{2\}, \dots,
+   \{n\}\}$ into the $n$ subsets of size 1.
+2) Choose a subset $\{i,j\}$ of size 2 uniformly among all such
+   subsets which are *not* contained in any of the parts of $P$,
+   i.e. where $i$ and $j$ are in different parts.
+3) Merge the two parts containing $i$ and $j$.
+4) if the number of parts is $>k$ go back to (2), otherwise exit with
+   $P$ as the answer.
+* <2023-10-10 Tue> An Algorithmic Question
+We are given a set of $n$ letter words, $D$ (for dictionary).  We want
+to set up an efficient data structure which can answer queries like:
+
+Given an $n$ letter word, $w$, find $\arg \min_{u \in D} H(w,u)$,
+where $H$ is the Hamming distance.  Ideally, we'd like to answer this
+in time $O(\log |D|)$.  Suppose that, by precomputation, we construct
+the following data structure:
+1) One (using hashing) can detect membership in $D$.
+2) For each of $n$ subsets, $W_j$, of word positions, of size $n-1$
+   detect wheter $w|W_j$ (i.e. the $n-1$ long word constructed out of
+   the positions in $W_j$ in order) is in $D_j$, where $D_j$ is the
+   set $\{u | W_j : u \in D\}$
+
+* Conjugation
+Our setup is we have a subgroup $G < S_n$, and $h \in S_n, h \not \in
+G$.  We want to find an element of $\arg \min \{\cycles(hg): g \in
+G\}$, where $\cycles(g)$ denotes the number of cycles in $g$ (including
+the trivial ones of length 1).  Let $J < G$, be the subgroup
+$J = \{ u \in G: u^{-1} h u = h\}$.  We know that $u^{-1} h g u = h
+u^{-1} g u$ has the same number of cycles as $hg$.  Therefore we only
+need to consider representative of the the $J$ conjugacy classes in
+$G$.  Note that if $G$ acts on a space $X$, we only need to find the
+orbits.
+
+Another approach is let $F(\sigma)$ be the number of cycles in the
+permutation $\sigma$ (including the trivial ones of size 1).  $F$ is a
+*class function*.  We would like to evaluate the function $T_k(\sigma)$
+which is 1 when $F(\sigma) = k$ and 0 otherwise.
+
+$\sum_{g \in G} T_k(hg)$.  Note that $T_k$ is also a class function.
+
+From the paper "On the distribution of the number of cycles of
+elements in symmetric groups" by Don Zagier, on page 3, at the bottom,
+there is a formula
+$\frac{1}{|C|} \sum_{c \in C} F(bc) = \sum_{\chi \in \widehat{G}}
+\frac{\chi(b)\chi(C)}{\chi(1)} \left( \frac{1}{|G|} \sum_A |A| \chi(A)
+F(A^{-1}) \right)$.
+
+If $F$ is a class function on $G$, then the above is true
+with $\Res_H^G F(A^{-1})$.  Now, since if $b \not \in H$, $\chi(b)$ is
+not defined.  Is this still true with $\chi(b)$ replaced by $\Ind_H^G
+\chi(b)$?
+
+There is the relation $\sum_{\chi \in \widehat{G}} \chi(g)
+\overline{\chi(h)}$ which is $|C_G(g)|$ if $g$ and $h$ are conjugate
+and 0 otherwise.
+
+Here, $A$ and $C$ denote conjugacy classes of $G$, and $\widehat{G}$
+denotes the set of irreducible characters of $G$.  This isn't
+immediately applicable to our problem because we want to sum over
+conjugacy classes of a subgroup $H < G$ (here $G=S_n$), since $h \not
+\in H$.
+
+The above formula is a consequence of the following
+$\# \{ (a,b,c) \in A \times B \times C| abc = 1\} =
+\frac{|A||B||C|}{|G|} \sum_{\chi \in \widehat{G}}
+\frac{\chi(A)\chi(B)\chi(C)}{\chi(1)}$, where, again, $A, B$ and $C$
+denote conjugacy classes of $G$.
+
+Note that $T_k$ is *only* defined on $H$, so $T_k(hg)$ doesn't make
+sense.
+
+So the question is: can we do something with an induced representation
+of $T_k$?
+
+Definition: If $G$ is a finite group, and $\phi, \psi \rightarrow \CC$ are
+class functions, then
+$\langle \phi, \psi\rangle_G := \frac{1}{|G|} \sum_a \phi(a)
+\overline{\psi(a)}$, where the sum is over representives of conjugacy
+classes of $G$.
+
+Definition: If $H < G$ is a subgroup of a finite group $G$, and $\phi$
+is a class function on $H$, then, for an element $s \in G$
+$\Ind_H^G(\phi)(s) := \frac{1}{|H|} \sum_{t \in G, s^t \in H}
+\phi(s^t)$.   Here $s^t := t^{-1} s t$.  Since every conjugacy class
+in $G$ is a disjoint union of conjugacy classes of $H$, we define
+$\Res_H^G\phi(s) =\phi(s)$, if $\phi$ is a class function of $G$.
+
+Proposition (Frobenius Reciprocity): If $H < G$ is a subgroup of a
+finite group $G$, $\phi$ a class function of $H$, and $\psi$ a class
+function of $G$ then
+$\langle \Ind_H^G(\phi), \psi \rangle_G =
+\langle \phi, \Res_H^G \psi \rangle_H$.
+
+Now let $T_k$ be the class function on $S_n$ which is 1 if its
+argument has exactly $k$ cycles and 0 otherwise.
+
+In our case, the subgroup $H$ is the direct product of a number of
+$S_k$.  So we can calculte $\Ind_H^G \Res_H^G T_k(h)$ by counting how many ways
+the partition associated to $h$ can be included in the partitions
+generated by the factors in $H$.
+
+We have $\langle \Ind_H^G \Res_H^G \phi, \chi \rangle_G =
+\langle \Res_H^G \phi, \Res_H^G \chi \rangle_H$, for all character
+$\chi$ of $G$.
+* Ranking and unranking
+We are interested in ranking and unranking permutations of degree $n$
+with $k$ cycles and no fixed points (i.e. each cycle is of length $\ge
+2$).  The argument given in [[https://math.stackexchange.com/questions/4249716/recurrence-of-number-of-derangement-of-n-with-k-cycles][Recurrence of number of derangement of \[n\] with k cycles]]
+is the following:
+
+1st Case: If the cycle containing the element $n$ has length 2, then
+there are $n-1$ ways to pick its other element, and there are
+$d(n-2,k-1)$ ways to derange the remaining $n-2$ elements into $k-1$
+cycles.
+
+2nd Case: If the cycle containing the element $n$ has length $\ge 3$,
+then skipping element $n$ in its cycle still leaves cycle of length at
+least 2, and we can produce a derangement of $[n-1]$ into $k$ cycles,
+which gives us $d(n-1,k)$ ways. On the other hand, every derangement
+of $[n]$ with $n$ into $k$ cycles arises from a derangement of $[n-1]$
+of $k$ cycles by inserting $n$ immediately following some $x \in
+[n-1]$ on the cycle containing $x$. So, there are $(n-1)d(n-1,k)$ of this type.
+
+So, the derived recurrence is $d(n,k) = (n-1)(d(n-2,k-1) + d(n-1,k))$.
+
+These are known as [[https://oeis.org/A008306][Associated Stirling numbers of the first kind]]
+There's also a page from Wolfram MathWorld [[https://mathworld.wolfram.com/AssociatedStirlingNumberoftheFirstKind.html][Associated Stirling Numbers of the first kind]]
+
+From the recurrence we can do a ranking and unranking.  First we
+specify a standard form for a cycle notation for permutations:
+
+Each cycle will be rotated so that its largest element is at the end.
+We then order the cycles the value of their largest element,
+
+For unranking, the base case is $n=2, k=1$ with the unique cycle
+$(0,1)$.
+
+If we have an integer $0 \le j < d(n,k)$, we calculate
+$q = \lfloor j / (d(n-2,k-1) + d(n-1,k)) \rfloor$ and
+$r = j - q (d(n-2,k-1) + d(n-1,k))$.  If $0 \le r < d(n-1,k)$, then
+we, recursively, produce a derangement of $n-1$ integers into $k$
+cycles indexed by $r$, and then insert $n$ in the cycle containing $q$
+after it.  If $r \ge d(n-1,k)$, set $r' = r - d(n-1,k)$.  We then,
+recursively construct a derangement with $n-2$ integers with $k-1$
+cycles indexed by $r'$.  We then renumber all the integers in that
+cycle which are $\ge q$ by adding 1, and then add the 2-cycle
+containing $q$ and $n$.
+
+For ranking, we consider the cycle containing $n$.  If it is a cycle
+of length $> 2$, we remove it and set $t$ to be the integer preceding
+it in the cycle, forming the permutation $\sigma$. The
+rank is then $t(d(n-2,k-1) + d(n-1,k)) + \rank(\sigma)$.
+
+If $n$ is contained in a cycle of length $2$, let $t$ be the other
+element in the cycle, and $\sigma$ the permutation obtained by
+removing that cycle, and renumbering all of the integers $>t$ by
+subtracting 1 (filling in the gap).  The rank is then $t(d(n-2,k-1) +
+d(n-1,k)) + d(n-1,k) + \rank(\sigma)$.
+
+* Question
+Suppose that we generate permutations in the following way:
+pick $k$ distinct transpositions (i.e. sampled uniformly without
+replacement) of integers in $[n]$ and multiply them together.  What is
+the probability that the resulting permutation has exactly $n-k$
+cycles?  The same question *with* replacement.
+
+In general, if $\sigma_i$ are all of the transpositions, we're
+interested in evaluating
+$(\sum_i \sigma_i) ^k$ in the group algebra, and then applying
+the class functions that detect individual numbers of cycles.  The
+interesting point is that $\sum_i \sigma_i$ is in the center of the
+group algebra since it is a sum over a class.  The dimension of the
+center is exactly $p(n)$ the number of partitions of $n$.
+
+* Question
+Is there a "nice" CNF formula that can be used to find maximal number
+of cycles in a permutation?
+
+More specifically, suppose that a permutation of $[n]$ is rendered as
+a one-to-one map $[n] \rightarrow [n]$, by having variable $p_{i,j}$
+with exactly one of $\{p_{i,j} : j \in [n]\}$ for all $i \in [n]$, and
+exactly one of $\{p_{i,j} : i \in [n]\}$ for all $j \in [n]$.
+
+More specifically if we use $p_{i,j}$ to indicate edges in a graph
+with vertex set $[n]$, find a CNF formula to indicate the number of
+connected components.
+
+Here's a try: Introduce new variables $c_{i,j}$ for $i,j \in [n]$.
+Here $c_{i,j}$ is true if and ony if the $i$-th component contains
+vertex $j$. We should have: each $j$ is contained in exactly one
+component, if $\{j,j'\}$ is an edge, then $c_{i,j} \Rightarrow
+c_{i,j'}$.   This is $p_{j,j'} \Rightarrow (c_{i,j} \Rightarrow
+c_{i,j'})$, which is one clause, but there are $n^3$ such.
+Let $d_i = \bigvee_j c_{i,j}$.  Then $d_i$ is 1 if and
+only if there are any vertices in component $i$.  To break (some)
+symmetries, we should have $\overline{d_i} \Rightarrow
+\overline{d_{i+1}}$.  This ensures that all the component numbers are
+bunched together at the beginning.  To break all symmetries we'd like
+the largest numbered vertex in component $i$ to be less than the
+largest numbered vertex in component $i+1$.  That means that there is
+*some* vertex in component $i+1$ that is greater than all vertices in
+component $i$.  So we need new variables (this is now getting to be
+cubic, so is rather unpalatable) $r_{i,j,j'}$ for $j > j'$ which
+indicates that $j$ is in component $i+1$, $j'$ is in component $i$.
+That is $r_{i,j,j'} = c_{i+1,j} \wedge c_{i,j'}$.  We want the clause
+$\bigvee_{j > j'} r_{i,j,j'}$ for all $i=1, \dots, n-1$.
+
+I think that above is correct.  I think that SAT should find the
+correct number of connected components.  That is the number of $d_i$
+which are true.
+
+*** <2023-10-23 Mon>
+The above is *not* correct.  The constraints above do
+not rule putting everything in one component.
+
+Here's another rendition, which I'm pretty sure is correct:
+
+First suppose that the graph in question is a disjoint union of
+cliques.  In that case we have a unique representative of each clique
+(connected component) as the maximum element in the clique.  We can
+ensure that as follows: We have a boolean variable $c_i$ for $i \in
+[n]$, and we want $i$ to be unconnected to all $j > i$.  That is
+$c_i = \bigvee_{j > i} \overline{p_{i,j}}$.  We render this by
+$\overline{c_i} \vee \bigvee_{j > i} \overline{p_{i,j}}$ and
+$c_i \vee p_{i,j}$ for $j > i$.  Then the number of connected
+components will be $\sum_i c_i$.
+
+Now we reduce the original problem to the case above.
+
+Define boolean variables $q_{i,j,k}$ for $i,j \in [n]$, $1 \le k \le
+\lceil \log_2 n \rceil$.  The idea is that $q_{i,j,k}$ is 1 if and
+only if $i$ and $j$ are connected by a path of length $< 2^k$.
+We start out with $q_{i,j,1} = p_{i,j}$ if $i \ne j$ and $q_{i,i,1} =
+1$.  Note that $i$ and $j$ are connected by a path of length $< 2^k$
+if and only if either they are connected by a path of length $<
+2^{k-1}$ or  they are connected by a path of length $2^{k-1} \le r
+< 2^k$.  On the path of length $r$ there is a point which is
+distance $\lfloor r/2 \rfloor$ from $i$ and $\lceil r/2 \rceil$ from
+$j$.  Since $r < 2^k$, we have $\lceil r/2 \rceil \le
+2^{k-1}$.
+In the latter case there is a vertex $\ell$ such that $i$ and $\ell$ are
+connected by a path of length $\le 2^{k-1}$ and $j$ and $\ell$ are
+connected by a path of length $\le 2^{k-1}$ (choose a point half way
+in between).  Thus we have $q_{i,j,k+1} = q_{i,j,k} \vee \bigvee_{\ell}
+(q_{i,\ell,k} \wedge q_{j,\ell,k})$.  Since the diameter of of $n$
+vertex graph is $\le n-1$, we can use $q_{i,j,k}$ for $k = \lceil
+\log_2 (n-1) \rceil$ as the edges of a the graph which is a disjoint
+union of cliques.  This is of complexity $O(n^3 \og n)$.
+
+[Hmm. This doesn't quite work.  If we start off with points connected
+by paths of length $< 2$, to get to points connected by paths of
+length $< 3$, we need have a recursive path of length $2$.  Maybe
+Fibonacci lengths?].   Let $F_i$ be $i$-th Fibonacci number:
+$F_1 = 1, F_2 = 2, F_3 = 3$, etc.  Let $q_{i,j,k}$ be 1 if and only if
+$i$ and $j$ are connected by a path of length $\le F_k$.  Then $i$ and
+$j$ are connected by a path of length $\le F_{k+1}$ if and only if the
+are either connected by a path of length $\le F_k$ or they are
+connected by a path of length $r \in [F_k + 1, F_{k+1}]$.  In that
+case there is a point $\ell$ on that path which is of length $\le
+F_{k-1}$ from $i$ and $\le F_k$ from $j$ :-).
+
+Question: can this be reduced further?  Can we use the *union find*
+data structure?
+
+Description of the union find.   For each $i \in [n]$ we have $p(i)$
+which is the "pointer" to the set representative that $i$ is in.  At
+the beginning, $p(i) = i$ for all $i \in [n]$.  If we process an
+"edge" $(i,j)$ for $i \ne j$.
+
+** <2023-10-25 Wed>
+Yes, the original *does* work.   Just change it to
+"The idea is that $q_{i,j,k}$ is 1 if and
+only if $i$ and $j$ are connected by a path of length $\le 2^k$."
+Note that if $i$ and $j$ are connected by a path of length $\ell \le
+2^k$, then there is a point $r$ on that path of length $\lfloor \ell /
+2\rfloor$ from $i$ and length $\lceil \ell / 2 \rceil$ from $j$.  Note
+that the latter is $\le 2^{k-1}$.
+
+* Group Properties
+In arXiv:1905.09431, Unger states that if $P_n \subseteq S_n$ for all
+$n$ (where $S_n$ is the symmetric group on $n$ letters), and if
+$\lim_{n \rightarrow \infty} |P_n|/|S_n| = 1$, then
+$\lim_{n \rightarrow \infty} |P \cap A_n| / |A_n| = 1$.
+
+(Actually he state that "$P$ is a property of $S_n$".)
+
+Let $\tau \in S_n$ be a transposition, then $S_n = A_n \sqcup \tau
+A_n$.  $P_n = U_n \sqcup V_n$, where $U_n = P_n \cap A_n$
+and $V_n = P_n \cap \tau A_n$.  Oh, if $\alpha = \lim \sup_{n \rightarrow
+\infty} |U_n| / |A_n| < 1$ then $\lim \sup_{n \rightarrow
+\infty} |P_n| / |S_n| \le \frac 12 (\lim \sup_{n \rightarrow
+\infty} |U_n| / |A_n| + \lim \sup_{n \rightarrow \infty} |V_n|/|A_n|)
+\le \frac 12 (\alpha + 1) < 1$.
+
+Lemma 2: If $P_n, Q_n \subset S_n$ and $\lim_{n \rightarrow
+\infty} |P_n|/|S_n| = \lim_{n \rightarrow \infty} |Q_n|/|S_n| = 1$,
+then $\lim_{n \rightarrow n} |P_n \cap Q_n| / |S_n| = 1$.  This is
+equivalent to the union of two probability 0 subsets having
+probability 0.
+
+
+

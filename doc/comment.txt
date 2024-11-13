@@ -1,0 +1,12 @@
+From Ulam’s Wikipedia entry: Earlier, while playing solitaire during
+his recovery from surgery, Ulam had thought about playing hundreds of
+games to estimate statistically the probability of a successful
+outcome.[38] With ENIAC in mind, he realized that the availability of
+computers made such statistical methods very practical. John von
+Neumann immediately saw the significance of this insight. In March
+1947 he proposed a statistical approach to the problem of neutron
+diffusion in fissionable material.[39] Because Ulam had often
+mentioned his uncle, Michał Ulam, "who just had to go to Monte Carlo"
+to gamble, Metropolis dubbed the statistical approach "The Monte Carlo
+method".[37] Metropolis and Ulam published the first unclassified
+paper on the Monte Carlo method in 1949.[40]
