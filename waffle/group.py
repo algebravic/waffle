@@ -254,13 +254,13 @@ def exhaust_coset(coset_rep: Permutation, subgrp: PermutationGroup,
     with the largest number of cycles, or if limit is not None
     an element with at least limit cycles.
     """
-    # return max((_ * coset_rep for _ in subgrp._elements),
+    # return max((_ * coset_rep for _ in subgrp.elements),
     #            key = lambda _: _.cycles)
     if verbose > 0:
         stats = Counter(((coset_rep * _).cycles
-                         for _ in subgrp._elements))
+                         for _ in subgrp.elements))
         print(f"Census = {stats}")
-    return max((coset_rep * _ for _ in subgrp._elements),
+    return max((coset_rep * _ for _ in subgrp.elements),
                key = lambda _: _.cycles)
 
 # sympy permutations need integers
